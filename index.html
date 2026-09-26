@@ -134,6 +134,31 @@
             </div>
         </section>
 
+        <!-- Módulo de Valoraciones / Historial Clínico -->
+        <section id="seccion-valoraciones" class="valoraciones-section" style="padding: 30px; display: none;">
+            <h2>Historial Clínico y Valoraciones</h2>
+            
+            <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-top: 20px;">
+                <label>Seleccionar Paciente para ver su expediente:</label>
+                <select id="selectPacienteValoracion" style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 20px;">
+                    <option value="">-- Seleccione un paciente --</option>
+                </select>
+
+                <!-- Esta parte se mostrará cuando seleccionemos a alguien -->
+                <div id="expedientePaciente" style="display: none; border-top: 1px solid #eee; padding-top: 20px;">
+                    <h3 id="expNombre" style="color: var(--primary-color);">Nombre del Paciente</h3>
+                    <p><strong>Edad:</strong> <span id="expEdad"></span> años</p>
+                    <p><strong>Antecedentes Clínicos:</strong> <span id="expAntecedentes"></span></p>
+                    <p><strong>Valoración Inicial:</strong> <span id="expValoracion"></span></p>
+
+                    <h4 style="margin-top: 20px; margin-bottom: 10px; border-bottom: 2px solid var(--secondary-color); padding-bottom: 5px;">Historial de Citas y Evolución</h4>
+                    <div id="listaHistorialCitas">
+                        <!-- Aquí se inyectarán las citas previas usando JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Footer -->
         <footer>
             <p>Desarrollado y diseñado por <strong>Verdz | Ing. Kevin Garcia Verduzco © 2026</strong></p>
