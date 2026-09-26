@@ -181,9 +181,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ==========================================
+   // ==========================================
     // 5. CARGAR Y GUARDAR AGENDA
     // ==========================================
+    
+    // Función 1: Cargar la lista desplegable de pacientes
     async function cargarPacientesEnAgenda() {
         if(!window.supabaseCliente) return;
         const select = document.getElementById('selectPacienteAgenda');
@@ -191,7 +193,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         select.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
 
-        const { data, error } = await window.supabaseCliente.from('pacientes').select('id, nombre_completo').order('nombre_completo', { ascending: true }); 
+        const { data, error } = await window.supabaseCliente
+            .from('pacientes')
+            .select('id, nombre_completo')
+            .order('nombre_completo', { ascending: true }); 
+        
         if (error) return;
 
         data.forEach(paciente => {
@@ -202,6 +208,55 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Función 2 (NUEVA): Cargar las citas agendadas en la lista lateral
+    async function cargarCitasProximas() {
+        if(!window.supabaseCliente) return;
+        const listaCitas = document.getElementById('listaCitas');
+        if (!listaCitas) return;
+        
+        listaCitas.innerHTML = '<p style="color: #666; font-style: italic;">Cargando citas...</p>';
+
+        // Traemos todas las citas futuras (de hoy en adelante) y hacemos un 'join' para traer el nombre del paciente
+        const hoy = new Date();
+        hoy.setHours(0,0,0,0);
+        
+        const { data, error } = await window.supabaseCliente
+            .from('citas')
+            .select(`
+                id,
+                fecha_hora,
+                evolucion,
+                pacientes ( nombre_completo )
+            `)
+            .gte('fecha_hora', hoy.toISOString())
+            .order('fecha_hora', { ascending: true }); // Ordenadas por fecha
+
+        listaCitas.innerHTML = ''; // Limpiamos el texto de 'cargando'
+
+        if (error || !data || data.length === 0) {
+            listaCitas.innerHTML = '<p style="color: #666; font-style: italic;">No hay citas próximas agendadas.</p>';
+            return;
+        }
+
+        // Dibujar cada cita en pantalla
+        data.forEach(cita => {
+            const fechaObj = new Date(cita.fecha_hora);
+            const fechaFormateada = fechaObj.toLocaleString('es-MX', { 
+                weekday: 'short', month: 'short', day: 'numeric', 
+                hour: '2-digit', minute:'2-digit' 
+            });
+            const nombrePaciente = cita.pacientes ? cita.pacientes.nombre_completo : 'Paciente Desconocido';
+
+            listaCitas.innerHTML += `
+                <div style="padding: 10px; border-left: 4px solid var(--primary-color); background: var(--background); margin-bottom: 10px; border-radius: 4px;">
+                    <strong>${nombrePaciente}</strong> - <span style="color: var(--primary-color);">${fechaFormateada}</span><br>
+                    <small>${cita.evolucion || 'Sin notas'}</small>
+                </div>
+            `;
+        });
+    }
+
+    // Función 3: El evento de Guardar Nueva Cita
     const formAgendarCita = document.getElementById('formAgendarCita');
     if (formAgendarCita) {
         formAgendarCita.addEventListener('submit', async (e) => {
@@ -225,7 +280,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!error) {
                 alert('¡Cita agendada con éxito!');
                 formAgendarCita.reset();
-                actualizarDashboardYNotificaciones(); // <-- Actualiza los números del inicio y la campana
+                actualizarDashboardYNotificaciones();
+                cargarCitasProximas(); // <--- Actualiza la lista lateral al instante
             }
             btnSubmit.innerText = 'Agendar';
             btnSubmit.disabled = false;
