@@ -34,7 +34,10 @@ document.addEventListener('DOMContentLoaded', () => {
             ocultarTodo();
             limpiarMenu();
             btnInicio.classList.add('active');
-            if (seccionDashboard) seccionDashboard.style.display = 'block';
+            if (seccionDashboard) {
+                seccionDashboard.style.display = 'block';
+                actualizarDashboardYNotificaciones(); // Actualiza los números al volver al inicio
+            }
         });
     }
 
@@ -82,42 +85,57 @@ document.addEventListener('DOMContentLoaded', () => {
         const supabaseKey = 'sb_publishable_LNEyYuxscWZVaXeGZQ-lkw_lgcpK1ic';
         window.supabaseCliente = window.supabase.createClient(supabaseUrl, supabaseKey);
         
-        // Cargar notificaciones al iniciar
-        cargarNotificaciones();
+        // Cargar notificaciones y dashboard al iniciar
+        actualizarDashboardYNotificaciones();
     } catch (error) {
         console.error("Error al conectar con Supabase:", error);
     }
 
     // ==========================================
-    // 3. CAMPANA DE NOTIFICACIONES (Citas de Hoy)
+    // 3. CAMPANA DE NOTIFICACIONES Y DASHBOARD
     // ==========================================
-    async function cargarNotificaciones() {
+    async function actualizarDashboardYNotificaciones() {
         if (!window.supabaseCliente) return;
         
-        // Calculamos la fecha de hoy para México
+        // Calculamos la fecha de hoy y mañana
         const hoy = new Date();
         hoy.setHours(0,0,0,0);
         const manana = new Date(hoy);
         manana.setDate(manana.getDate() + 1);
 
-        // Buscamos citas agendadas para el día de hoy
-        const { data, error } = await window.supabaseCliente
+        const hoyISO = hoy.toISOString();
+        const mananaISO = manana.toISOString();
+
+        // 1. Buscar Citas de Hoy (Para la campana y la tarjeta)
+        const { data: citasHoy, error: errorC } = await window.supabaseCliente
             .from('citas')
             .select('id')
-            .gte('fecha_hora', hoy.toISOString())
-            .lt('fecha_hora', manana.toISOString())
-            .eq('estado', 'pendiente');
+            .gte('fecha_hora', hoyISO)
+            .lt('fecha_hora', mananaISO);
 
-        if (!error && data) {
+        if (!errorC && citasHoy) {
+            // Actualizar número grande del Dashboard
+            const contadorCitas = document.getElementById('count-citas-hoy');
+            if(contadorCitas) contadorCitas.innerText = citasHoy.length;
+
+            // Actualizar la Campanita
             const badge = document.querySelector('.badge');
             if (badge) {
-                badge.innerText = data.length; // Cambia el numerito de la campana
-                if (data.length === 0) {
-                    badge.style.display = 'none'; // Se oculta si no hay citas hoy
-                } else {
-                    badge.style.display = 'inline-block';
-                }
+                badge.innerText = citasHoy.length; 
+                badge.style.display = citasHoy.length === 0 ? 'none' : 'inline-block';
             }
+        }
+
+        // 2. Buscar Pacientes Nuevos (Registrados Hoy)
+        const { data: pacientesHoy, error: errorP } = await window.supabaseCliente
+            .from('pacientes')
+            .select('id')
+            .gte('fecha_registro', hoyISO)
+            .lt('fecha_registro', mananaISO);
+
+        if (!errorP && pacientesHoy) {
+            const contadorPacientes = document.getElementById('count-pacientes-nuevos');
+            if(contadorPacientes) contadorPacientes.innerText = pacientesHoy.length;
         }
     }
 
@@ -148,6 +166,8 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 alert('¡Paciente registrado con éxito!');
                 formPaciente.reset();
+                actualizarDashboardYNotificaciones(); // <-- Actualiza los números del inicio
+                
                 ocultarTodo();
                 limpiarMenu();
                 if(btnAgenda) btnAgenda.classList.add('active');
@@ -205,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!error) {
                 alert('¡Cita agendada con éxito!');
                 formAgendarCita.reset();
-                cargarNotificaciones(); // Actualizamos la campanita
+                actualizarDashboardYNotificaciones(); // <-- Actualiza los números del inicio y la campana
             }
             btnSubmit.innerText = 'Agendar';
             btnSubmit.disabled = false;
