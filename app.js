@@ -1,13 +1,13 @@
 // Esperar a que el HTML cargue completamente
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("El archivo app.js se ha cargado correctamente.");
-
+    
     // ==========================================
-    // 1. LÓGICA DE LA INTERFAZ (MENÚ)
+    // 1. LÓGICA DE LA INTERFAZ (MENÚ Y NAVEGACIÓN)
     // ==========================================
     const seccionDashboard = document.getElementById('seccion-dashboard');
     const seccionRegistro = document.getElementById('seccion-registro');
     const seccionAgenda = document.getElementById('seccion-agenda');
+    const seccionValoraciones = document.getElementById('seccion-valoraciones');
 
     const btnInicio = document.getElementById('menu-inicio');
     const btnPacientes = document.getElementById('menu-pacientes');
@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (seccionDashboard) seccionDashboard.style.display = 'none';
         if (seccionRegistro) seccionRegistro.style.display = 'none';
         if (seccionAgenda) seccionAgenda.style.display = 'none';
+        if (seccionValoraciones) seccionValoraciones.style.display = 'none';
     }
 
     function limpiarMenu() {
@@ -27,7 +28,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btnValoraciones) btnValoraciones.classList.remove('active');
     }
 
-    // Eventos del menú 
     if (btnInicio) {
         btnInicio.addEventListener('click', (e) => {
             e.preventDefault();
@@ -56,7 +56,6 @@ document.addEventListener('DOMContentLoaded', () => {
             btnAgenda.classList.add('active');
             if (seccionAgenda) {
                 seccionAgenda.style.display = 'block';
-                // Solo cargar pacientes si Supabase se conectó bien
                 if (window.supabaseCliente) cargarPacientesEnAgenda();
             }
         });
@@ -65,12 +64,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnValoraciones) {
         btnValoraciones.addEventListener('click', (e) => {
             e.preventDefault();
+            ocultarTodo();
             limpiarMenu();
             btnValoraciones.classList.add('active');
-            alert("Módulo de valoraciones en construcción");
+            if (seccionValoraciones) {
+                seccionValoraciones.style.display = 'block';
+                if (window.supabaseCliente) cargarPacientesEnValoraciones();
+            }
         });
     }
-
 
     // ==========================================
     // 2. CONEXIÓN A SUPABASE Y BASE DE DATOS
@@ -78,21 +80,55 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
         const supabaseUrl = 'https://kywususdtqcfpuivgtwy.supabase.co';
         const supabaseKey = 'sb_publishable_LNEyYuxscWZVaXeGZQ-lkw_lgcpK1ic';
-        // Usamos una variable global para evitar errores
         window.supabaseCliente = window.supabase.createClient(supabaseUrl, supabaseKey);
-        console.log("Supabase inicializado correctamente.");
+        
+        // Cargar notificaciones al iniciar
+        cargarNotificaciones();
     } catch (error) {
         console.error("Error al conectar con Supabase:", error);
     }
 
     // ==========================================
-    // 3. REGISTRAR PACIENTE
+    // 3. CAMPANA DE NOTIFICACIONES (Citas de Hoy)
+    // ==========================================
+    async function cargarNotificaciones() {
+        if (!window.supabaseCliente) return;
+        
+        // Calculamos la fecha de hoy para México
+        const hoy = new Date();
+        hoy.setHours(0,0,0,0);
+        const manana = new Date(hoy);
+        manana.setDate(manana.getDate() + 1);
+
+        // Buscamos citas agendadas para el día de hoy
+        const { data, error } = await window.supabaseCliente
+            .from('citas')
+            .select('id')
+            .gte('fecha_hora', hoy.toISOString())
+            .lt('fecha_hora', manana.toISOString())
+            .eq('estado', 'pendiente');
+
+        if (!error && data) {
+            const badge = document.querySelector('.badge');
+            if (badge) {
+                badge.innerText = data.length; // Cambia el numerito de la campana
+                if (data.length === 0) {
+                    badge.style.display = 'none'; // Se oculta si no hay citas hoy
+                } else {
+                    badge.style.display = 'inline-block';
+                }
+            }
+        }
+    }
+
+    // ==========================================
+    // 4. REGISTRAR PACIENTE
     // ==========================================
     const formPaciente = document.getElementById('formNuevoPaciente');
     if (formPaciente) {
         formPaciente.addEventListener('submit', async (e) => {
             e.preventDefault(); 
-            if(!window.supabaseCliente) return alert("Error: No hay conexión a la base de datos");
+            if(!window.supabaseCliente) return alert("Error de conexión a la BD");
 
             const nombre = document.getElementById('nombrePaciente').value;
             const edad = parseInt(document.getElementById('edadPaciente').value);
@@ -105,12 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const { data, error } = await window.supabaseCliente
                 .from('pacientes')
-                .insert([{ 
-                    nombre_completo: nombre, 
-                    edad: edad, 
-                    detalles_clinicos: detalles, 
-                    valoracion_inicial: valoracion 
-                }]);
+                .insert([{ nombre_completo: nombre, edad: edad, detalles_clinicos: detalles, valoracion_inicial: valoracion }]);
 
             if (error) {
                 alert('Hubo un error al registrar: ' + error.message);
@@ -131,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 4. CARGAR Y GUARDAR AGENDA
+    // 5. CARGAR Y GUARDAR AGENDA
     // ==========================================
     async function cargarPacientesEnAgenda() {
         if(!window.supabaseCliente) return;
@@ -140,12 +171,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         select.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
 
-        const { data, error } = await window.supabaseCliente
-            .from('pacientes')
-            .select('id, nombre_completo')
-            .order('nombre_completo', { ascending: true }); 
-
-        if (error) return console.error('Error al cargar pacientes:', error);
+        const { data, error } = await window.supabaseCliente.from('pacientes').select('id, nombre_completo').order('nombre_completo', { ascending: true }); 
+        if (error) return;
 
         data.forEach(paciente => {
             const option = document.createElement('option');
@@ -173,22 +200,92 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const { error } = await window.supabaseCliente
                 .from('citas')
-                .insert([{
-                    paciente_id: pacienteId,
-                    fecha_hora: fechaHora,
-                    evolucion: notas, 
-                    estado: 'pendiente'
-                }]);
+                .insert([{ paciente_id: pacienteId, fecha_hora: fechaHora, evolucion: notas, estado: 'pendiente' }]);
 
-            if (error) {
-                console.error('Error al agendar:', error);
-                alert('Error al agendar la cita.');
-            } else {
+            if (!error) {
                 alert('¡Cita agendada con éxito!');
                 formAgendarCita.reset();
+                cargarNotificaciones(); // Actualizamos la campanita
             }
             btnSubmit.innerText = 'Agendar';
             btnSubmit.disabled = false;
         });
     }
-});
+
+    // ==========================================
+    // 6. VALORACIONES Y EXPEDIENTE CLÍNICO
+    // ==========================================
+    async function cargarPacientesEnValoraciones() {
+        if(!window.supabaseCliente) return;
+        const select = document.getElementById('selectPacienteValoracion');
+        if (!select) return; 
+
+        select.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
+        const { data, error } = await window.supabaseCliente.from('pacientes').select('id, nombre_completo').order('nombre_completo', { ascending: true }); 
+        if (error) return;
+
+        data.forEach(paciente => {
+            const option = document.createElement('option');
+            option.value = paciente.id;
+            option.textContent = paciente.nombre_completo;
+            select.appendChild(option);
+        });
+    }
+
+    const selectPacienteValoracion = document.getElementById('selectPacienteValoracion');
+    if (selectPacienteValoracion) {
+        selectPacienteValoracion.addEventListener('change', async (e) => {
+            const pacienteId = e.target.value;
+            const contenedorExpediente = document.getElementById('expedientePaciente');
+            
+            if (!pacienteId) {
+                contenedorExpediente.style.display = 'none';
+                return;
+            }
+
+            // Traer datos del paciente
+            const { data: paciente, error: errorP } = await window.supabaseCliente
+                .from('pacientes')
+                .select('*')
+                .eq('id', pacienteId)
+                .single();
+
+            if (paciente) {
+                document.getElementById('expNombre').innerText = paciente.nombre_completo;
+                document.getElementById('expEdad').innerText = paciente.edad;
+                document.getElementById('expAntecedentes').innerText = paciente.detalles_clinicos || 'Ninguno registrado';
+                document.getElementById('expValoracion').innerText = paciente.valoracion_inicial || 'Ninguna registrada';
+                contenedorExpediente.style.display = 'block';
+            }
+
+            // Traer historial de citas de ese paciente
+            const { data: citas, error: errorC } = await window.supabaseCliente
+                .from('citas')
+                .select('*')
+                .eq('paciente_id', pacienteId)
+                .order('fecha_hora', { ascending: false }); // Las más recientes arriba
+
+            const listaCitas = document.getElementById('listaHistorialCitas');
+            listaCitas.innerHTML = '';
+
+            if (citas && citas.length > 0) {
+                citas.forEach(cita => {
+                    // Formatear la fecha para que se vea bonita
+                    const fechaObj = new Date(cita.fecha_hora);
+                    const fechaFormateada = fechaObj.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+                    
+                    listaCitas.innerHTML += `
+                        <div style="background: var(--background); padding: 15px; margin-bottom: 15px; border-left: 4px solid var(--primary-color); border-radius: 4px;">
+                            <strong>Cita:</strong> ${fechaFormateada} <br>
+                            <strong>Evolución / Notas:</strong> ${cita.evolucion || 'Sin notas'} <br>
+                            <small style="color: #666;"><strong>Estado:</strong> ${cita.estado.toUpperCase()}</small>
+                        </div>
+                    `;
+                });
+            } else {
+                listaCitas.innerHTML = '<p>No hay citas registradas para este paciente.</p>';
+            }
+        });
+    }
+
+}); // <-- Fin del DOMContentLoaded
