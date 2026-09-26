@@ -95,7 +95,7 @@
             </form>
         </section>
 
-        <!-- Módulo de Agenda y Calendario -->
+       <!-- Módulo de Agenda y Calendario -->
         <section id="seccion-agenda" class="agenda-section" style="padding: 30px; display: none;">
             <h2>Agenda de Citas</h2>
             
@@ -105,7 +105,6 @@
                     <h3>Nueva Cita</h3>
                     <form id="formAgendarCita" style="margin-top: 15px;">
                         <label>Seleccionar Paciente:</label>
-                        <!-- En el futuro llenaremos este select con JS desde Supabase -->
                         <select id="selectPacienteAgenda" required style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px;">
                             <option value="">-- Seleccione un paciente --</option>
                         </select>
@@ -127,6 +126,8 @@
                         <!-- Aquí inyectaremos las citas reales con JS -->
                     </div>
                 </div>
+            </div> <!-- AQUI FALTABA CERRAR EL DIV GRID -->
+        </section> <!-- AQUI FALTABA CERRAR LA SECCION DE AGENDA -->
 
         <!-- Módulo de Valoraciones / Historial Clínico -->
         <section id="seccion-valoraciones" class="valoraciones-section" style="padding: 30px; display: none;">
