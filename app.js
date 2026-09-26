@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (btnAgenda) {
+ if (btnAgenda) {
         btnAgenda.addEventListener('click', (e) => {
             e.preventDefault();
             ocultarTodo();
@@ -59,11 +59,15 @@ document.addEventListener('DOMContentLoaded', () => {
             btnAgenda.classList.add('active');
             if (seccionAgenda) {
                 seccionAgenda.style.display = 'block';
-                if (window.supabaseCliente) cargarPacientesEnAgenda();
+                if (window.supabaseCliente) {
+                    cargarPacientesEnAgenda();
+                    cargarCitasProximas(); // <-- Agrega esta línea
+                }
             }
         });
     }
 
+    
     if (btnValoraciones) {
         btnValoraciones.addEventListener('click', (e) => {
             e.preventDefault();
