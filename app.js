@@ -302,7 +302,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         select.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
         const { data, error } = await window.supabaseCliente.from('pacientes').select('id, nombre_completo').order('nombre_completo', { ascending: true }); 
-        if (error) return;
+        
+        if (error) {
+            console.error("Error al cargar pacientes para valoración:", error);
+            return;
+        }
 
         data.forEach(paciente => {
             const option = document.createElement('option');
@@ -317,20 +321,27 @@ document.addEventListener('DOMContentLoaded', () => {
         selectPacienteValoracion.addEventListener('change', async (e) => {
             const pacienteId = e.target.value;
             const contenedorExpediente = document.getElementById('expedientePaciente');
+            const listaCitas = document.getElementById('listaHistorialCitas');
             
             if (!pacienteId) {
-                contenedorExpediente.style.display = 'none';
+                if(contenedorExpediente) contenedorExpediente.style.display = 'none';
                 return;
             }
 
-            // Traer datos del paciente
+            // --- 1. Traer datos del paciente ---
             const { data: paciente, error: errorP } = await window.supabaseCliente
                 .from('pacientes')
                 .select('*')
                 .eq('id', pacienteId)
                 .single();
 
-            if (paciente) {
+            if (errorP) {
+                console.error("Error al buscar ficha de paciente:", errorP);
+                if(listaCitas) listaCitas.innerHTML = `<p style="color:red;">Error al cargar paciente: ${errorP.message}</p>`;
+                return;
+            }
+
+            if (paciente && contenedorExpediente) {
                 document.getElementById('expNombre').innerText = paciente.nombre_completo;
                 document.getElementById('expEdad').innerText = paciente.edad;
                 document.getElementById('expAntecedentes').innerText = paciente.detalles_clinicos || 'Ninguno registrado';
@@ -338,19 +349,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 contenedorExpediente.style.display = 'block';
             }
 
-            // Traer historial de citas de ese paciente
+            // --- 2. Traer historial de citas ---
+            if(listaCitas) listaCitas.innerHTML = '<p>Cargando historial...</p>'; 
+            
             const { data: citas, error: errorC } = await window.supabaseCliente
                 .from('citas')
                 .select('*')
                 .eq('paciente_id', pacienteId)
-                .order('fecha_hora', { ascending: false }); // Las más recientes arriba
+                .order('fecha_hora', { ascending: false }); 
 
-            const listaCitas = document.getElementById('listaHistorialCitas');
-            listaCitas.innerHTML = '';
+            if (errorC) {
+                console.error("Error al cargar el historial de citas:", errorC);
+                if(listaCitas) listaCitas.innerHTML = `<p style="color:red;">Error al cargar historial: ${errorC.message}</p>`;
+                return;
+            }
 
-            if (citas && citas.length > 0) {
+            if(listaCitas) listaCitas.innerHTML = ''; 
+
+            if (citas && citas.length > 0 && listaCitas) {
                 citas.forEach(cita => {
-                    // Formatear la fecha para que se vea bonita
                     const fechaObj = new Date(cita.fecha_hora);
                     const fechaFormateada = fechaObj.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
                     
@@ -362,8 +379,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     `;
                 });
-            } else {
-                listaCitas.innerHTML = '<p>No hay citas registradas para este paciente.</p>';
+            } else if (listaCitas) {
+                listaCitas.innerHTML = '<p style="color:#666; font-style:italic;">No hay citas registradas para este paciente.</p>';
             }
         });
     }
