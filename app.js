@@ -11,6 +11,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const seccionRegistro = document.getElementById('seccion-registro');
     const seccionAgenda = document.getElementById('seccion-agenda');
 
+    const btnInicio = document.getElementById('menu-inicio');
+    const btnPacientes = document.getElementById('menu-pacientes');
+    const btnAgenda = document.getElementById('menu-agenda');
+    const btnValoraciones = document.getElementById('menu-valoraciones');
+
     // Función para ocultar todas las secciones
     function ocultarTodo() {
         if (seccionDashboard) seccionDashboard.style.display = 'none';
@@ -18,41 +23,53 @@ document.addEventListener('DOMContentLoaded', () => {
         if (seccionAgenda) seccionAgenda.style.display = 'none';
     }
 
-    // Eventos de los botones del menú (Con validación para evitar errores)
-    const btnInicio = document.getElementById('menu-inicio');
+    // Función para quitar la clase 'active' de todos los botones
+    function limpiarMenu() {
+        if (btnInicio) btnInicio.classList.remove('active');
+        if (btnPacientes) btnPacientes.classList.remove('active');
+        if (btnAgenda) btnAgenda.classList.remove('active');
+        if (btnValoraciones) btnValoraciones.classList.remove('active');
+    }
+
+    // Eventos de los botones del menú
     if (btnInicio) {
         btnInicio.addEventListener('click', (e) => {
             e.preventDefault();
             ocultarTodo();
-            seccionDashboard.style.display = 'block';
+            limpiarMenu();
+            btnInicio.classList.add('active'); // Marca el botón como seleccionado
+            if (seccionDashboard) seccionDashboard.style.display = 'block';
         });
     }
 
-    const btnPacientes = document.getElementById('menu-pacientes');
     if (btnPacientes) {
         btnPacientes.addEventListener('click', (e) => {
             e.preventDefault();
             ocultarTodo();
-            seccionRegistro.style.display = 'block';
+            limpiarMenu();
+            btnPacientes.classList.add('active');
+            if (seccionRegistro) seccionRegistro.style.display = 'block';
         });
     }
 
-    const btnAgenda = document.getElementById('menu-agenda');
     if (btnAgenda) {
         btnAgenda.addEventListener('click', (e) => {
             e.preventDefault();
             ocultarTodo();
+            limpiarMenu();
+            btnAgenda.classList.add('active');
             if (seccionAgenda) {
                 seccionAgenda.style.display = 'block';
-                cargarPacientesEnAgenda(); // Cargar la lista al abrir la agenda
+                cargarPacientesEnAgenda(); // Cargar la lista de la base de datos al abrir
             }
         });
     }
 
-    const btnValoraciones = document.getElementById('menu-valoraciones');
     if (btnValoraciones) {
         btnValoraciones.addEventListener('click', (e) => {
             e.preventDefault();
+            limpiarMenu();
+            btnValoraciones.classList.add('active');
             alert("Módulo de valoraciones en construcción");
         });
     }
@@ -61,20 +78,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const formPaciente = document.getElementById('formNuevoPaciente');
     if (formPaciente) {
         formPaciente.addEventListener('submit', async (e) => {
-            e.preventDefault(); // Evita que recargue la página
+            e.preventDefault(); 
 
-            // Obtener valores
             const nombre = document.getElementById('nombrePaciente').value;
             const edad = parseInt(document.getElementById('edadPaciente').value);
             const detalles = document.getElementById('detallesClinicos').value;
             const valoracion = document.getElementById('valoracionInicial').value;
 
-            // Botón en estado de carga
             const btnSubmit = formPaciente.querySelector('button');
             btnSubmit.innerText = 'Guardando...';
             btnSubmit.disabled = true;
 
-            // Enviar a Supabase
             const { data, error } = await supabase
                 .from('pacientes')
                 .insert([{ 
@@ -92,15 +106,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('¡Paciente registrado con éxito!');
                 formPaciente.reset();
                 
-                // Mandarlo directo a la agenda después de guardar
+                // Manda a la agenda después de guardar
                 ocultarTodo();
+                limpiarMenu();
+                if(btnAgenda) btnAgenda.classList.add('active');
                 if(seccionAgenda) {
                     seccionAgenda.style.display = 'block';
-                    cargarPacientesEnAgenda(); // Actualiza la lista para que aparezca el nuevo
+                    cargarPacientesEnAgenda(); 
                 }
             }
 
-            // Restaurar botón
             btnSubmit.innerText = 'Guardar Paciente y Agendar Cita';
             btnSubmit.disabled = false;
         });
@@ -108,28 +123,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- LÓGICA DE LA AGENDA ---
 
-    // Función para cargar los pacientes en el Select de la agenda
     async function cargarPacientesEnAgenda() {
         const select = document.getElementById('selectPacienteAgenda');
-        
-        // Solo cargamos si el select existe en el HTML
         if (!select) return; 
 
-        // Reiniciar el select
         select.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
 
-        // Consultar Supabase
         const { data, error } = await supabase
             .from('pacientes')
             .select('id, nombre_completo')
-            .order('nombre_completo', { ascending: true }); // Ordenados alfabéticamente
+            .order('nombre_completo', { ascending: true }); 
 
         if (error) {
             console.error('Error al cargar pacientes:', error);
             return;
         }
 
-        // Llenar el select con los datos
         data.forEach(paciente => {
             const option = document.createElement('option');
             option.value = paciente.id;
@@ -138,7 +147,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Guardar nueva cita en Supabase
     const formAgendarCita = document.getElementById('formAgendarCita');
     if (formAgendarCita) {
         formAgendarCita.addEventListener('submit', async (e) => {
@@ -179,4 +187,4 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-}); // <-- FIN DEL DOMContentLoaded (Todo debe ir adentro)
+}); // <-- Fin del DOMContentLoaded
