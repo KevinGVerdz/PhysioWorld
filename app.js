@@ -328,7 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 6. VALORACIONES (CON EDICIÓN DE ESTADO Y NOTAS)
+    // 6. VALORACIONES (EDICIÓN, REPROGRAMACIÓN Y ELIMINACIÓN)
     // ==========================================
     async function cargarPacientesEnValoraciones() {
         if(!window.supabaseCliente) return;
@@ -362,7 +362,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('expNombre').innerText = paciente.nombre_completo;
                 document.getElementById('expEdad').innerText = paciente.edad;
                 
-                // Limpiamos y estructuramos bien los antecedentes
                 let antecedentesTexto = "";
                 if(paciente.antecedentes_personales) antecedentesTexto += `Personales: ${paciente.antecedentes_personales} <br>`;
                 if(paciente.antecedentes_familiares) antecedentesTexto += `Familiares: ${paciente.antecedentes_familiares} <br>`;
@@ -381,24 +380,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (citas && citas.length > 0 && listaCitas) {
                 citas.forEach(cita => {
+                    // Calculamos la hora local para que los inputs editables se muestren correctamente
                     const fechaObj = new Date(cita.fecha_hora);
-                    const fechaFormateada = fechaObj.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+                    const tzOffset = fechaObj.getTimezoneOffset() * 60000;
+                    const valorInicio = (new Date(fechaObj - tzOffset)).toISOString().slice(0, 16);
+                    
+                    const fechaObjFin = cita.fecha_fin ? new Date(cita.fecha_fin) : new Date(fechaObj.getTime() + 3600000);
+                    const tzOffsetFin = fechaObjFin.getTimezoneOffset() * 60000;
+                    const valorFin = (new Date(fechaObjFin - tzOffsetFin)).toISOString().slice(0, 16);
+
                     const nombreFisio = cita.staff ? cita.staff.nombre : 'Desconocido';
                     const colorBorde = cita.estado === 'listo' ? '#28a745' : 'var(--primary-color)';
                     const estadoTexto = cita.estado === 'listo' ? 'LISTO ✔' : 'PENDIENTE ⏳';
                     
                     listaCitas.innerHTML += `
-                        <div style="background: var(--background); padding: 15px; margin-bottom: 15px; border-left: 4px solid ${colorBorde}; border-radius: 4px;">
-                            <strong>Cita:</strong> ${fechaFormateada} <span style="float:right; color:#666; font-size: 0.85rem;">Fisio: ${nombreFisio}</span><br>
-                            <strong>Servicio:</strong> ${cita.tipo_cita || 'No especificado'}<br>
+                        <div style="background: var(--background); padding: 15px; margin-bottom: 15px; border-left: 4px solid ${colorBorde}; border-radius: 4px; position: relative;">
+                            
+                            <!-- Botón de Eliminar -->
+                            <button onclick="eliminarCitaBD('${cita.id}')" style="position: absolute; top: 15px; right: 15px; background: #dc3545; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">
+                                <i class="fas fa-trash"></i> Eliminar
+                            </button>
+
+                            <div style="margin-bottom: 10px; padding-right: 80px;">
+                                <span style="color:#666; font-size: 0.85rem;">Fisio: <strong>${nombreFisio}</strong> | Servicio: <strong>${cita.tipo_cita || 'No especificado'}</strong></span>
+                            </div>
+
+                            <!-- Campos Editables para Reprogramar -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                                <div>
+                                    <label style="font-size: 0.8rem; font-weight: bold;">Inicio:</label>
+                                    <input type="datetime-local" id="inicio-${cita.id}" value="${valorInicio}" style="width: 100%; padding: 5px; font-size: 0.9rem; border: 1px solid #ccc; border-radius: 3px;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.8rem; font-weight: bold;">Fin:</label>
+                                    <input type="datetime-local" id="fin-${cita.id}" value="${valorFin}" style="width: 100%; padding: 5px; font-size: 0.9rem; border: 1px solid #ccc; border-radius: 3px;">
+                                </div>
+                            </div>
                             
                             <label style="display:block; margin-top:10px; font-weight:bold; font-size: 0.9rem;">Notas / Evolución:</label>
                             <textarea id="nota-${cita.id}" rows="2" style="width:100%; padding:8px; margin-top:5px; border:1px solid #ccc; border-radius:4px;">${cita.evolucion || ''}</textarea>
                             
-                            <div style="margin-top: 10px; display: flex; gap: 10px; align-items: center;">
+                            <div style="margin-top: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                                 <strong style="color: ${colorBorde}; font-size: 0.9rem; width: 100px;">${estadoTexto}</strong>
-                                <button onclick="actualizarCitaBD('${cita.id}', 'pendiente')" style="padding: 5px 10px; cursor:pointer; font-size:0.8rem;">Marcar Pendiente</button>
-                                <button onclick="actualizarCitaBD('${cita.id}', 'listo')" style="padding: 5px 10px; cursor:pointer; background: #28a745; color:white; border:none; border-radius:3px; font-size:0.8rem;">Guardar y Marcar Listo</button>
+                                <button onclick="actualizarCitaBD('${cita.id}', 'pendiente')" style="padding: 6px 12px; cursor:pointer; font-size:0.85rem; border: 1px solid #ccc; background: white; border-radius: 4px;">Guardar Cambios (Pendiente)</button>
+                                <button onclick="actualizarCitaBD('${cita.id}', 'listo')" style="padding: 6px 12px; cursor:pointer; background: #28a745; color:white; border:none; border-radius:4px; font-size:0.85rem;">Guardar y Marcar Listo</button>
                             </div>
                         </div>
                     `;
@@ -410,15 +435,55 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 }); 
 
-// FUNCIÓN GLOBAL PARA ACTUALIZAR CITAS
+// ==========================================
+// FUNCIONES GLOBALES (ELIMINAR Y ACTUALIZAR)
+// ==========================================
 window.actualizarCitaBD = async function(citaId, nuevoEstado) {
     if(!window.supabaseCliente) return alert("Error de conexión");
+    
+    // Capturamos los nuevos datos del formulario
     const nuevaNota = document.getElementById(`nota-${citaId}`).value;
-    const { error } = await window.supabaseCliente.from('citas').update({ estado: nuevoEstado, evolucion: nuevaNota }).eq('id', citaId);
+    const nuevaFechaInicio = new Date(document.getElementById(`inicio-${citaId}`).value).toISOString();
+    const nuevaFechaFin = new Date(document.getElementById(`fin-${citaId}`).value).toISOString();
+
+    if (new Date(nuevaFechaFin) <= new Date(nuevaFechaInicio)) {
+        return alert("Error: La hora de fin debe ser mayor a la de inicio.");
+    }
+
+    const { error } = await window.supabaseCliente
+        .from('citas')
+        .update({ 
+            estado: nuevoEstado, 
+            evolucion: nuevaNota,
+            fecha_hora: nuevaFechaInicio,
+            fecha_fin: nuevaFechaFin
+        })
+        .eq('id', citaId);
+        
     if (error) {
         alert("Error al actualizar: " + error.message);
     } else {
-        alert("¡Expediente actualizado!");
+        alert("¡Cita reprogramada y actualizada correctamente!");
+        document.getElementById('selectPacienteValoracion').dispatchEvent(new Event('change'));
+        if(typeof calendarioFisio !== 'undefined' && calendarioFisio) calendarioFisio.refetchEvents();
+    }
+};
+
+window.eliminarCitaBD = async function(citaId) {
+    if(!window.supabaseCliente) return alert("Error de conexión");
+    
+    const confirmacion = confirm("¿Estás seguro de que deseas ELIMINAR esta cita? Esta acción no se puede deshacer.");
+    if(!confirmacion) return;
+
+    const { error } = await window.supabaseCliente
+        .from('citas')
+        .delete()
+        .eq('id', citaId);
+
+    if (error) {
+        alert("Error al eliminar: " + error.message);
+    } else {
+        alert("Cita eliminada correctamente.");
         document.getElementById('selectPacienteValoracion').dispatchEvent(new Event('change'));
         if(typeof calendarioFisio !== 'undefined' && calendarioFisio) calendarioFisio.refetchEvents();
     }
