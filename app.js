@@ -201,13 +201,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 const optV = document.createElement('option'); optV.value = p.id; optV.textContent = p.nombre_completo;
                 if(selectV) selectV.appendChild(optV);
 
+                // AÑADIMOS EL BOTÓN DE ELIMINAR PACIENTE AQUÍ
                 if(contenedorDir) {
+                    // Limpiamos comillas simples por si el paciente se llama D'Angelo
+                    const nombreSeguro = p.nombre_completo.replace(/'/g, "\\'"); 
+                    
                     contenedorDir.innerHTML += `
-                        <div class="paciente-item">
-                            <span style="font-weight:bold; color:#333; font-size:1.1rem;">${p.nombre_completo}</span>
-                            <div style="display:flex; gap:10px;">
-                                <button onclick="accionDirectorio('${p.id}', 'agenda')" style="background:var(--primary-color); color:white; border:none; padding:8px 12px; border-radius:5px; cursor:pointer;"><i class="fas fa-calendar-plus"></i> Agendar</button>
-                                <button onclick="accionDirectorio('${p.id}', 'valoracion')" style="background:#28a745; color:white; border:none; padding:8px 12px; border-radius:5px; cursor:pointer;"><i class="fas fa-folder-open"></i> Expediente</button>
+                        <div class="paciente-item" style="flex-wrap: wrap; gap: 10px;">
+                            <span style="font-weight:bold; color:#333; font-size:1.1rem; flex: 1 1 100%;">${p.nombre_completo}</span>
+                            <div style="display:flex; gap:10px; width: 100%; justify-content: flex-start;">
+                                <button onclick="accionDirectorio('${p.id}', 'agenda')" style="background:var(--primary-color); color:white; border:none; padding:8px 12px; border-radius:5px; cursor:pointer; font-size: 0.9rem;"><i class="fas fa-calendar-plus"></i> Agendar</button>
+                                <button onclick="accionDirectorio('${p.id}', 'valoracion')" style="background:#28a745; color:white; border:none; padding:8px 12px; border-radius:5px; cursor:pointer; font-size: 0.9rem;"><i class="fas fa-folder-open"></i> Expediente</button>
+                                <button onclick="eliminarPacienteBD('${p.id}', '${nombreSeguro}')" style="background:#dc3545; color:white; border:none; padding:8px 12px; border-radius:5px; cursor:pointer; margin-left: auto;" title="Eliminar Paciente"><i class="fas fa-trash"></i></button>
                             </div>
                         </div>
                     `;
@@ -357,13 +362,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalDirectorio = document.getElementById('modal-directorio');
     const btnCerrarDirectorio = document.getElementById('btnCerrarDirectorio');
     
-    // Abrir modal desde los botones azules
     window.abrirDirectorio = function() {
         if(modalDirectorio) modalDirectorio.style.display = 'flex';
         cargarPacientesGlobales(); 
     };
 
-    // Cerrar modal desde la 'X'
     if(btnCerrarDirectorio) {
         btnCerrarDirectorio.addEventListener('click', (e) => {
             e.preventDefault();
@@ -371,7 +374,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Enviar a la pestaña seleccionada
     window.accionDirectorio = async function(pacienteId, destino) {
         modalDirectorio.style.display = 'none'; 
         
@@ -390,7 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
 }); // <-- FIN DEL DOMContentLoaded
 
 // ==========================================
-// FUNCIONES GLOBALES (ELIMINAR Y ACTUALIZAR BD)
+// FUNCIONES GLOBALES (CITAS Y ELIMINAR PACIENTE CON DOBLE VERIFICACIÓN)
 // ==========================================
 window.actualizarCitaBD = async function(citaId, nuevoEstado) {
     if(!window.supabaseCliente) return alert("Error");
@@ -410,4 +412,46 @@ window.eliminarCitaBD = async function(citaId) {
     const { error } = await window.supabaseCliente.from('citas').delete().eq('id', citaId);
     if (error) alert("Error: " + error.message);
     else { alert("Eliminada"); document.getElementById('selectPacienteValoracion').dispatchEvent(new Event('change')); if(typeof calendarioFisio !== 'undefined' && calendarioFisio) calendarioFisio.refetchEvents(); }
+};
+
+// NUEVA FUNCIÓN: ELIMINAR PACIENTE CON DOBLE VERIFICACIÓN
+window.eliminarPacienteBD = async function(pacienteId, nombrePaciente) {
+    if(!window.supabaseCliente) return alert("Error de conexión");
+    
+    // 1. Primera Verificación (Botón de Aceptar/Cancelar)
+    const primeraAlerta = confirm(`⚠️ ATENCIÓN: Estás a punto de eliminar a "${nombrePaciente}".\n\n¿Estás seguro de continuar?`);
+    if(!primeraAlerta) return;
+
+    // 2. Segunda Verificación (Escribir "BORRAR")
+    const palabraSeguridad = prompt(`Para confirmar que deseas eliminar a "${nombrePaciente}" y TODAS sus citas, escribe la palabra: BORRAR`);
+    
+    if (palabraSeguridad !== "BORRAR") {
+        return alert("Eliminación cancelada. La palabra no coincide.");
+    }
+
+    // 3. Eliminar primero las citas (Para evitar errores de base de datos)
+    const { error: errorCitas } = await window.supabaseCliente.from('citas').delete().eq('paciente_id', pacienteId);
+    if (errorCitas) return alert("Error al limpiar las citas: " + errorCitas.message);
+
+    // 4. Eliminar el paciente
+    const { error: errorPaciente } = await window.supabaseCliente.from('pacientes').delete().eq('id', pacienteId);
+    
+    if (errorPaciente) {
+        alert("Error al eliminar paciente: " + errorPaciente.message);
+    } else {
+        alert("¡El paciente y su historial han sido eliminados por completo!");
+        
+        // Recargar la ventana del directorio flotante para que ya no aparezca
+        abrirDirectorio(); 
+        
+        // Si el paciente estaba seleccionado en la pestaña Valoraciones, se limpia la pantalla
+        const selectVal = document.getElementById('selectPacienteValoracion');
+        if (selectVal && selectVal.value === pacienteId) {
+            selectVal.value = "";
+            document.getElementById('expedientePaciente').style.display = 'none';
+        }
+        
+        // Se borran sus bloques del calendario
+        if(typeof calendarioFisio !== 'undefined' && calendarioFisio) calendarioFisio.refetchEvents();
+    }
 };
