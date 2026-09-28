@@ -50,10 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btnAgenda.classList.add('active');
             if (seccionAgenda) {
                 seccionAgenda.style.display = 'block';
-                if (window.supabaseCliente) {
-                    cargarPacientesEnAgenda();
-                    setTimeout(() => renderizarCalendario(), 100); 
-                }
+                if (window.supabaseCliente) { cargarPacientesGlobales(); setTimeout(() => renderizarCalendario(), 100); }
             }
         });
     }
@@ -64,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btnValoraciones.classList.add('active');
             if (seccionValoraciones) {
                 seccionValoraciones.style.display = 'block';
-                if (window.supabaseCliente) cargarPacientesEnValoraciones();
+                if (window.supabaseCliente) cargarPacientesGlobales();
             }
         });
     }
@@ -78,23 +75,16 @@ document.addEventListener('DOMContentLoaded', () => {
         window.supabaseCliente = window.supabase.createClient(supabaseUrl, supabaseKey);
         actualizarDashboardYNotificaciones();
         cargarUsuariosLogin();
-    } catch (error) {
-        console.error("Error al conectar con Supabase:", error);
-    }
+    } catch (error) { console.error("Error BD:", error); }
 
     async function cargarUsuariosLogin() {
         if (!window.supabaseCliente) return;
         const selectLogin = document.getElementById('loginUsuario');
-        if (!selectLogin) return;
-
         const { data, error } = await window.supabaseCliente.from('staff').select('id, nombre, rol');
-        if (error) return;
-
-        selectLogin.innerHTML = '<option value="">-- Selecciona tu usuario --</option>';
+        if (error || !data) return;
         data.forEach(user => {
             const option = document.createElement('option');
-            option.value = user.id;
-            option.textContent = `${user.nombre} (${user.rol})`;
+            option.value = user.id; option.textContent = `${user.nombre} (${user.rol})`;
             selectLogin.appendChild(option);
         });
     }
@@ -108,18 +98,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const msjError = document.getElementById('loginError');
 
             if (!userId) return alert("Selecciona un usuario.");
+            const { data, error } = await window.supabaseCliente.from('staff').select('id, nombre, rol').eq('id', userId).eq('pin', pinIngresado).single(); 
 
-            const { data, error } = await window.supabaseCliente
-                .from('staff').select('id, nombre, rol').eq('id', userId).eq('pin', pinIngresado).single(); 
-
-            if (error || !data) {
-                msjError.style.display = 'block'; 
-            } else {
-                msjError.style.display = 'none';
-                usuarioActual = data; 
+            if (error || !data) msjError.style.display = 'block'; 
+            else {
+                msjError.style.display = 'none'; usuarioActual = data; 
                 document.getElementById('login-screen').style.display = 'none';
-                const userInfoIcon = document.querySelector('.user-info p');
-                if(userInfoIcon) userInfoIcon.innerHTML = `<i class="fas fa-user-md"></i> ${data.nombre}`;
+                document.querySelector('.user-info p').innerHTML = `<i class="fas fa-user-md"></i> ${data.nombre}`;
             }
         });
     }
@@ -127,44 +112,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnLogout = document.getElementById('btnLogout');
     if (btnLogout) {
         btnLogout.addEventListener('click', () => {
-            usuarioActual = null;
-            document.getElementById('loginPin').value = ''; 
+            usuarioActual = null; document.getElementById('loginPin').value = ''; 
             document.getElementById('login-screen').style.display = 'flex'; 
         });
     }
 
     // ==========================================
-    // 3. DASHBOARD
+    // 3. DASHBOARD Y NOTIFICACIONES
     // ==========================================
     async function actualizarDashboardYNotificaciones() {
         if (!window.supabaseCliente) return;
         const hoy = new Date(); hoy.setHours(0,0,0,0);
         const manana = new Date(hoy); manana.setDate(manana.getDate() + 1);
 
-        const { data: citasHoy, error: errorC } = await window.supabaseCliente
-            .from('citas').select('id').gte('fecha_hora', hoy.toISOString()).lt('fecha_hora', manana.toISOString());
-
-        if (!errorC && citasHoy) {
+        const { data: citasHoy } = await window.supabaseCliente.from('citas').select('id').gte('fecha_hora', hoy.toISOString()).lt('fecha_hora', manana.toISOString());
+        if (citasHoy) {
             const contadorCitas = document.getElementById('count-citas-hoy');
             if(contadorCitas) contadorCitas.innerText = citasHoy.length;
             const badge = document.querySelector('.badge');
-            if (badge) {
-                badge.innerText = citasHoy.length; 
-                badge.style.display = citasHoy.length === 0 ? 'none' : 'inline-block';
-            }
+            if (badge) { badge.innerText = citasHoy.length; badge.style.display = citasHoy.length === 0 ? 'none' : 'inline-block'; }
         }
 
-        const { data: pacientesHoy, error: errorP } = await window.supabaseCliente
-            .from('pacientes').select('id').gte('fecha_registro', hoy.toISOString()).lt('fecha_registro', manana.toISOString());
-
-        if (!errorP && pacientesHoy) {
+        const { data: pacientesHoy } = await window.supabaseCliente.from('pacientes').select('id').gte('fecha_registro', hoy.toISOString()).lt('fecha_registro', manana.toISOString());
+        if (pacientesHoy) {
             const contadorPacientes = document.getElementById('count-pacientes-nuevos');
             if(contadorPacientes) contadorPacientes.innerText = pacientesHoy.length;
         }
     }
 
     // ==========================================
-    // 4. REGISTRAR PACIENTE (MEGA FORMULARIO)
+    // 4. REGISTRO DE PACIENTE
     // ==========================================
     const formPaciente = document.getElementById('formNuevoPaciente');
     if (formPaciente) {
@@ -173,94 +150,75 @@ document.addEventListener('DOMContentLoaded', () => {
             if(!window.supabaseCliente || !usuarioActual) return alert("Debes iniciar sesión.");
 
             const btnSubmit = formPaciente.querySelector('button');
-            btnSubmit.innerText = 'Guardando...';
-            btnSubmit.disabled = true;
+            btnSubmit.innerText = 'Guardando...'; btnSubmit.disabled = true;
 
-            const getCheckboxes = (name) => {
-                return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(cb => cb.value).join(', ');
-            };
+            const getCheckboxes = (name) => Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(cb => cb.value).join(', ');
 
             const datosPaciente = {
-                nombre_completo: document.getElementById('nombrePaciente').value,
-                edad: parseInt(document.getElementById('edadPaciente').value),
-                telefono_emergencia: document.getElementById('telEmergencia').value,
-                antecedentes_personales: getCheckboxes('ant_personal'),
-                antecedentes_familiares: document.getElementById('antFamiliares').value,
-                pruebas_reflejos: getCheckboxes('reflejos'),
-                sensibilidad: getCheckboxes('sensibilidad'),
-                tipo_marcha: document.getElementById('tipoMarcha').value,
-                goniometria: document.getElementById('goniometria').value,
-                nivel_dolor: parseInt(document.getElementById('nivelDolor').value),
-                mapa_dolor: document.getElementById('zonasDolor').value,
-                servicio_contratado: document.getElementById('servicioContratado').value,
-                observaciones_medicas: document.getElementById('notasTerapeuticas').value,
-                creado_por_id: usuarioActual.id 
+                nombre_completo: document.getElementById('nombrePaciente').value, edad: parseInt(document.getElementById('edadPaciente').value),
+                telefono_emergencia: document.getElementById('telEmergencia').value, antecedentes_personales: getCheckboxes('ant_personal'),
+                antecedentes_familiares: document.getElementById('antFamiliares').value, pruebas_reflejos: getCheckboxes('reflejos'),
+                sensibilidad: getCheckboxes('sensibilidad'), tipo_marcha: document.getElementById('tipoMarcha').value,
+                goniometria: document.getElementById('goniometria').value, nivel_dolor: parseInt(document.getElementById('nivelDolor').value),
+                mapa_dolor: document.getElementById('zonasDolor').value, servicio_contratado: document.getElementById('servicioContratado').value,
+                observaciones_medicas: document.getElementById('notasTerapeuticas').value, creado_por_id: usuarioActual.id 
             };
 
             const { error } = await window.supabaseCliente.from('pacientes').insert([datosPaciente]);
-
-            if (error) {
-                alert('Hubo un error al registrar: ' + error.message);
-            } else {
-                alert('¡Expediente registrado con éxito!');
-                formPaciente.reset();
-                document.getElementById('valorDolor').innerText = '0';
-                actualizarDashboardYNotificaciones(); 
-                document.getElementById('menu-agenda').click();
+            if (error) alert('Error: ' + error.message);
+            else {
+                alert('¡Expediente registrado!'); formPaciente.reset(); document.getElementById('valorDolor').innerText = '0';
+                actualizarDashboardYNotificaciones(); document.getElementById('menu-agenda').click();
             }
-            btnSubmit.innerText = 'Guardar Expediente y Agendar';
-            btnSubmit.disabled = false;
+            btnSubmit.innerText = 'Guardar Expediente y Agendar'; btnSubmit.disabled = false;
         });
     }
 
-   // ==========================================
-    // 5. AGENDA, FULLCALENDAR Y BUSCADOR INTELIGENTE
+    // ==========================================
+    // 5. DIRECTORIO, AGENDA Y CALENDARIO
     // ==========================================
     let calendarioFisio; 
-    let listaGlobalPacientes = []; // Memoria para las búsquedas
+    let listaGlobalPacientes = [];
 
-    // Descarga a los pacientes 1 sola vez y los guarda en memoria
+    // Descarga e inyecta a los pacientes en los Selects y en el Modal del Directorio
     async function cargarPacientesGlobales() {
         if(!window.supabaseCliente) return;
-        const { data, error } = await window.supabaseCliente.from('pacientes').select('id, nombre_completo').order('nombre_completo', { ascending: true }); 
-        if (!error && data) {
+        const { data } = await window.supabaseCliente.from('pacientes').select('id, nombre_completo').order('nombre_completo', { ascending: true }); 
+        if (data) {
             listaGlobalPacientes = data;
-            filtrarSelectPacientes('selectPacienteAgenda', '');
-            filtrarSelectPacientes('selectPacienteValoracion', '');
+            
+            // Llenar Selects
+            const selectA = document.getElementById('selectPacienteAgenda');
+            const selectV = document.getElementById('selectPacienteValoracion');
+            if(selectA) selectA.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
+            if(selectV) selectV.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
+            
+            // Llenar Ventana Flotante del Directorio
+            const contenedorDir = document.getElementById('listaCompletaPacientes');
+            if(contenedorDir) contenedorDir.innerHTML = '';
+
+            data.forEach(p => {
+                const optA = document.createElement('option'); optA.value = p.id; optA.textContent = p.nombre_completo;
+                if(selectA) selectA.appendChild(optA);
+                
+                const optV = document.createElement('option'); optV.value = p.id; optV.textContent = p.nombre_completo;
+                if(selectV) selectV.appendChild(optV);
+
+                // Agregar al directorio flotante con sus dos botones
+                if(contenedorDir) {
+                    contenedorDir.innerHTML += `
+                        <div class="paciente-item">
+                            <span style="font-weight:bold; color:#333; font-size:1.1rem;">${p.nombre_completo}</span>
+                            <div style="display:flex; gap:10px;">
+                                <button onclick="accionDirectorio('${p.id}', 'agenda')" style="background:var(--primary-color); color:white; border:none; padding:8px 12px; border-radius:5px; cursor:pointer;"><i class="fas fa-calendar-plus"></i> Agendar</button>
+                                <button onclick="accionDirectorio('${p.id}', 'valoracion')" style="background:#28a745; color:white; border:none; padding:8px 12px; border-radius:5px; cursor:pointer;"><i class="fas fa-folder-open"></i> Expediente</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
         }
     }
-
-    // Inyecta solo los pacientes que coinciden con la búsqueda
-    function filtrarSelectPacientes(selectId, textoFiltro) {
-        const select = document.getElementById(selectId);
-        if (!select) return;
-        select.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
-        
-        const pacientesFiltrados = listaGlobalPacientes.filter(p => 
-            p.nombre_completo.toLowerCase().includes(textoFiltro.toLowerCase())
-        );
-
-        pacientesFiltrados.forEach(paciente => {
-            const option = document.createElement('option');
-            option.value = paciente.id;
-            option.textContent = paciente.nombre_completo;
-            select.appendChild(option);
-        });
-    }
-
-    // Activamos el motor de búsqueda cada que el usuario escribe
-    const buscadorAgenda = document.getElementById('buscadorAgenda');
-    if(buscadorAgenda) {
-        buscadorAgenda.addEventListener('input', (e) => filtrarSelectPacientes('selectPacienteAgenda', e.target.value));
-    }
-    const buscadorValoracion = document.getElementById('buscadorValoracion');
-    if(buscadorValoracion) {
-        buscadorValoracion.addEventListener('input', (e) => filtrarSelectPacientes('selectPacienteValoracion', e.target.value));
-    }
-
-    // Compatibilidad con el menú lateral (Para no romper la lógica anterior)
-    async function cargarPacientesEnAgenda() { await cargarPacientesGlobales(); }
-    async function cargarPacientesEnValoraciones() { await cargarPacientesGlobales(); }
 
     function renderizarCalendario() {
         const calendarEl = document.getElementById('calendarioGoogle');
@@ -268,33 +226,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (calendarioFisio) { calendarioFisio.render(); return; }
 
         calendarioFisio = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'timeGridWeek', 
-            locale: 'es', 
+            initialView: 'timeGridWeek', locale: 'es', 
             headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
             slotMinTime: '07:00:00', slotMaxTime: '21:00:00', allDaySlot: false,
             events: async function(info, successCallback, failureCallback) {
                 if(!window.supabaseCliente) return failureCallback('Sin BD');
-                
-                const { data, error } = await window.supabaseCliente
-                    .from('citas')
+                const { data, error } = await window.supabaseCliente.from('citas')
                     .select('id, fecha_hora, fecha_fin, evolucion, paciente_id, estado, pacientes(nombre_completo)')
-                    .gte('fecha_hora', info.startStr)
-                    .lt('fecha_hora', info.endStr);
-
-                if (error) {
-                    failureCallback(error);
-                } else {
-                    const eventos = data.map(cita => {
-                        return {
-                            id: cita.id,
-                            title: (cita.pacientes ? cita.pacientes.nombre_completo : 'Sin Nombre') + (cita.estado === 'listo' ? ' ✔' : ''),
-                            start: cita.fecha_hora,
-                            end: cita.fecha_fin || cita.fecha_hora, 
-                            backgroundColor: cita.estado === 'listo' ? '#28a745' : '#1f73b3',
-                            borderColor: cita.estado === 'listo' ? '#28a745' : '#1f73b3',
-                            extendedProps: { paciente_id: cita.paciente_id } 
-                        };
-                    });
+                    .gte('fecha_hora', info.startStr).lt('fecha_hora', info.endStr);
+                if (error) failureCallback(error);
+                else {
+                    const eventos = data.map(cita => ({
+                        id: cita.id, title: (cita.pacientes ? cita.pacientes.nombre_completo : '') + (cita.estado === 'listo' ? ' ✔' : ''),
+                        start: cita.fecha_hora, end: cita.fecha_fin || cita.fecha_hora, 
+                        backgroundColor: cita.estado === 'listo' ? '#28a745' : '#1f73b3', borderColor: cita.estado === 'listo' ? '#28a745' : '#1f73b3',
+                        extendedProps: { paciente_id: cita.paciente_id } 
+                    }));
                     successCallback(eventos);
                 }
             },
@@ -304,8 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('menu-valoraciones').click(); 
                     await cargarPacientesGlobales(); 
                     const selectVal = document.getElementById('selectPacienteValoracion');
-                    selectVal.value = pacienteId;
-                    selectVal.dispatchEvent(new Event('change')); 
+                    selectVal.value = pacienteId; selectVal.dispatchEvent(new Event('change')); 
                 }
             }
         });
@@ -327,9 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!pacienteId || !tipoCita) return alert("Complete los campos obligatorios.");
             if (new Date(fechaFin) <= new Date(fechaInicio)) return alert("La hora de fin debe ser mayor a la de inicio.");
 
-            const btnSubmit = formAgendarCita.querySelector('button');
-            btnSubmit.innerText = 'Agendando...';
-            btnSubmit.disabled = true;
+            const btnSubmit = formAgendarCita.querySelector('button'); btnSubmit.innerText = 'Agendando...'; btnSubmit.disabled = true;
 
             const { error } = await window.supabaseCliente.from('citas').insert([{ 
                 paciente_id: pacienteId, tipo_cita: tipoCita, fecha_hora: fechaInicio, fecha_fin: fechaFin, 
@@ -337,20 +281,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }]);
 
             if (!error) {
-                alert('¡Cita agendada en el calendario!');
-                formAgendarCita.reset();
-                actualizarDashboardYNotificaciones();
+                alert('¡Cita agendada!'); formAgendarCita.reset(); actualizarDashboardYNotificaciones();
                 if(calendarioFisio) calendarioFisio.refetchEvents(); 
-            } else {
-                alert('Error al agendar: ' + error.message);
-            }
-            btnSubmit.innerText = 'Agendar en Calendario';
-            btnSubmit.disabled = false;
+            } else alert('Error: ' + error.message);
+            btnSubmit.innerText = 'Agendar en Calendario'; btnSubmit.disabled = false;
         });
     }
 
     // ==========================================
-    // 6. VALORACIONES (CON EDICIÓN DE ESTADO Y NOTAS)
+    // 6. VALORACIONES Y GESTIÓN
     // ==========================================
     const selectPacienteValoracion = document.getElementById('selectPacienteValoracion');
     if (selectPacienteValoracion) {
@@ -377,10 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if(listaCitas) listaCitas.innerHTML = '<p>Cargando historial...</p>'; 
-            
-            const { data: citas } = await window.supabaseCliente
-                .from('citas').select('*, staff(nombre)').eq('paciente_id', pacienteId).order('fecha_hora', { ascending: false }); 
-
+            const { data: citas } = await window.supabaseCliente.from('citas').select('*, staff(nombre)').eq('paciente_id', pacienteId).order('fecha_hora', { ascending: false }); 
             if(listaCitas) listaCitas.innerHTML = ''; 
 
             if (citas && citas.length > 0 && listaCitas) {
@@ -399,23 +335,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     listaCitas.innerHTML += `
                         <div style="background: var(--background); padding: 15px; margin-bottom: 15px; border-left: 4px solid ${colorBorde}; border-radius: 4px; position: relative;">
-                            
-                            <button onclick="eliminarCitaBD('${cita.id}')" style="position: absolute; top: 15px; right: 15px; background: #dc3545; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">
-                                <i class="fas fa-trash"></i> Eliminar
-                            </button>
-
-                            <div style="margin-bottom: 10px; padding-right: 80px;">
-                                <span style="color:#666; font-size: 0.85rem;">Fisio: <strong>${nombreFisio}</strong> | Servicio: <strong>${cita.tipo_cita || 'No especificado'}</strong></span>
-                            </div>
-
+                            <button onclick="eliminarCitaBD('${cita.id}')" style="position: absolute; top: 15px; right: 15px; background: #dc3545; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;"><i class="fas fa-trash"></i> Eliminar</button>
+                            <div style="margin-bottom: 10px; padding-right: 80px;"><span style="color:#666; font-size: 0.85rem;">Fisio: <strong>${nombreFisio}</strong> | Servicio: <strong>${cita.tipo_cita || 'No especificado'}</strong></span></div>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
                                 <div><label style="font-size: 0.8rem; font-weight: bold;">Inicio:</label><input type="datetime-local" id="inicio-${cita.id}" value="${valorInicio}" style="width: 100%; padding: 5px; font-size: 0.9rem; border: 1px solid #ccc; border-radius: 3px;"></div>
                                 <div><label style="font-size: 0.8rem; font-weight: bold;">Fin:</label><input type="datetime-local" id="fin-${cita.id}" value="${valorFin}" style="width: 100%; padding: 5px; font-size: 0.9rem; border: 1px solid #ccc; border-radius: 3px;"></div>
                             </div>
-                            
                             <label style="display:block; margin-top:10px; font-weight:bold; font-size: 0.9rem;">Notas / Evolución:</label>
                             <textarea id="nota-${cita.id}" rows="2" style="width:100%; padding:8px; margin-top:5px; border:1px solid #ccc; border-radius:4px;">${cita.evolucion || ''}</textarea>
-                            
                             <div style="margin-top: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                                 <strong style="color: ${colorBorde}; font-size: 0.9rem; width: 100px;">${estadoTexto}</strong>
                                 <button onclick="actualizarCitaBD('${cita.id}', 'pendiente')" style="padding: 6px 12px; cursor:pointer; font-size:0.85rem; border: 1px solid #ccc; background: white; border-radius: 4px;">Guardar (Pendiente)</button>
@@ -424,48 +351,64 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     `;
                 });
-            } else if (listaCitas) {
-                listaCitas.innerHTML = '<p style="color:#666; font-style:italic;">No hay citas registradas para este paciente.</p>';
-            }
+            } else if (listaCitas) { listaCitas.innerHTML = '<p style="color:#666; font-style:italic;">No hay citas registradas para este paciente.</p>'; }
         });
     }
+
+    // ==========================================
+    // 7. CONTROLES DE LA VENTANA FLOTANTE (MODAL)
+    // ==========================================
+    const modalDirectorio = document.getElementById('modal-directorio');
+    const btnCerrarDirectorio = document.getElementById('btnCerrarDirectorio');
+    
+    // Abre el modal desde los botones azules
+    window.abrirDirectorio = function() {
+        if(modalDirectorio) modalDirectorio.style.display = 'flex';
+        cargarPacientesGlobales(); // Refresca la lista
+    };
+
+    // Cierra el modal desde la 'X'
+    if(btnCerrarDirectorio) {
+        btnCerrarDirectorio.addEventListener('click', (e) => {
+            e.preventDefault();
+            modalDirectorio.style.display = 'none';
+        });
+    }
+
+    // Acción al presionar "Agendar" o "Expediente" adentro del modal
+    window.accionDirectorio = async function(pacienteId, destino) {
+        modalDirectorio.style.display = 'none'; // Oculta el modal
+        
+        if(destino === 'agenda') {
+            document.getElementById('menu-agenda').click();
+            document.getElementById('selectPacienteAgenda').value = pacienteId;
+        } else if (destino === 'valoracion') {
+            document.getElementById('menu-valoraciones').click();
+            await cargarPacientesGlobales(); 
+            const selectVal = document.getElementById('selectPacienteValoracion');
+            selectVal.value = pacienteId;
+            selectVal.dispatchEvent(new Event('change')); // Fuerza que aparezca el historial
+        }
+    };
 }); 
 
-// ==========================================
-// FUNCIONES GLOBALES (ELIMINAR Y ACTUALIZAR)
-// ==========================================
+// Funciones globales para citas
 window.actualizarCitaBD = async function(citaId, nuevoEstado) {
-    if(!window.supabaseCliente) return alert("Error de conexión");
+    if(!window.supabaseCliente) return alert("Error");
     const nuevaNota = document.getElementById(`nota-${citaId}`).value;
     const nuevaFechaInicio = new Date(document.getElementById(`inicio-${citaId}`).value).toISOString();
     const nuevaFechaFin = new Date(document.getElementById(`fin-${citaId}`).value).toISOString();
+    if (new Date(nuevaFechaFin) <= new Date(nuevaFechaInicio)) return alert("Error: Fin debe ser mayor al inicio.");
 
-    if (new Date(nuevaFechaFin) <= new Date(nuevaFechaInicio)) {
-        return alert("Error: La hora de fin debe ser mayor a la de inicio.");
-    }
-
-    const { error } = await window.supabaseCliente.from('citas')
-        .update({ estado: nuevoEstado, evolucion: nuevaNota, fecha_hora: nuevaFechaInicio, fecha_fin: nuevaFechaFin })
-        .eq('id', citaId);
-        
-    if (error) alert("Error al actualizar: " + error.message);
-    else {
-        alert("¡Cita reprogramada y actualizada correctamente!");
-        document.getElementById('selectPacienteValoracion').dispatchEvent(new Event('change'));
-        if(typeof calendarioFisio !== 'undefined' && calendarioFisio) calendarioFisio.refetchEvents();
-    }
+    const { error } = await window.supabaseCliente.from('citas').update({ estado: nuevoEstado, evolucion: nuevaNota, fecha_hora: nuevaFechaInicio, fecha_fin: nuevaFechaFin }).eq('id', citaId);
+    if (error) alert("Error: " + error.message);
+    else { alert("¡Actualizado!"); document.getElementById('selectPacienteValoracion').dispatchEvent(new Event('change')); if(typeof calendarioFisio !== 'undefined' && calendarioFisio) calendarioFisio.refetchEvents(); }
 };
 
 window.eliminarCitaBD = async function(citaId) {
-    if(!window.supabaseCliente) return alert("Error de conexión");
-    const confirmacion = confirm("¿Estás seguro de que deseas ELIMINAR esta cita? Esta acción no se puede deshacer.");
-    if(!confirmacion) return;
-
+    if(!window.supabaseCliente) return alert("Error");
+    if(!confirm("¿Seguro que deseas ELIMINAR la cita?")) return;
     const { error } = await window.supabaseCliente.from('citas').delete().eq('id', citaId);
-    if (error) alert("Error al eliminar: " + error.message);
-    else {
-        alert("Cita eliminada correctamente.");
-        document.getElementById('selectPacienteValoracion').dispatchEvent(new Event('change'));
-        if(typeof calendarioFisio !== 'undefined' && calendarioFisio) calendarioFisio.refetchEvents();
-    }
+    if (error) alert("Error: " + error.message);
+    else { alert("Eliminada"); document.getElementById('selectPacienteValoracion').dispatchEvent(new Event('change')); if(typeof calendarioFisio !== 'undefined' && calendarioFisio) calendarioFisio.refetchEvents(); }
 };
