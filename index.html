@@ -175,14 +175,19 @@
             </form>
         </section>
 
-        <!-- AGENDA CON SELECTOR CORREGIDO PARA EVITAR ERROR 188 -->
+        <!-- AGENDA CON SELECTOR CORREGIDO PARA EVITAR ERROR 188 Y BUSCADOR -->
         <section id="seccion-agenda" class="agenda-section" style="padding: 30px; display: none;">
             <h2>Agenda de Citas</h2>
             <div style="display: grid; grid-template-columns: 1fr 2.5fr; gap: 20px; margin-top: 20px;">
                 <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); height: fit-content;">
                     <h3>Nueva Cita</h3>
                     <form id="formAgendarCita" style="margin-top: 15px;">
-                        <label>Seleccionar Paciente:</label>
+                        
+                        <!-- BUSCADOR INTELIGENTE AGENDA -->
+                        <label>Buscar Paciente:</label>
+                        <input type="text" id="buscadorAgenda" placeholder="🔍 Escribe el nombre para filtrar..." style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ccc; border-radius: 5px;">
+                        
+                        <label style="margin-top: 10px; display:block;">Seleccionar Paciente:</label>
                         <select id="selectPacienteAgenda" required style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px;">
                             <option value="">-- Seleccione un paciente --</option>
                         </select>
@@ -213,13 +218,20 @@
             </div>
         </section>
 
+        <!-- VALORACIONES CON BUSCADOR INTELIGENTE -->
         <section id="seccion-valoraciones" class="valoraciones-section" style="padding: 30px; display: none;">
             <h2>Historial Clínico y Valoraciones</h2>
             <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-top: 20px;">
-                <label>Seleccionar Paciente para ver su expediente:</label>
+                
+                <!-- BUSCADOR INTELIGENTE VALORACIONES -->
+                <label>Buscar Paciente:</label>
+                <input type="text" id="buscadorValoracion" placeholder="🔍 Escribe el nombre para filtrar..." style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ccc; border-radius: 5px;">
+                
+                <label style="margin-top: 10px; display:block;">Seleccionar Paciente para ver su expediente:</label>
                 <select id="selectPacienteValoracion" style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 20px;">
                     <option value="">-- Seleccione un paciente --</option>
                 </select>
+                
                 <div id="expedientePaciente" style="display: none; border-top: 1px solid #eee; padding-top: 20px;">
                     <h3 id="expNombre" style="color: var(--primary-color);">Nombre del Paciente</h3>
                     <p><strong>Edad:</strong> <span id="expEdad"></span> años</p>
