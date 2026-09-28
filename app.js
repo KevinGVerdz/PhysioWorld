@@ -63,7 +63,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 seccionAgenda.style.display = 'block';
                 if (window.supabaseCliente) {
                     cargarPacientesEnAgenda();
-                    cargarCitasProximas();
+                    // LLAMAMOS AL NUEVO CALENDARIO AQUÍ
+                    setTimeout(() => renderizarCalendario(), 100); 
                 }
             }
         });
@@ -263,17 +264,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 5. AGENDA
+    // 5. AGENDA Y FULLCALENDAR
     // ==========================================
+    let calendarioFisio; // Variable global para el calendario
+
     async function cargarPacientesEnAgenda() {
         if(!window.supabaseCliente) return;
         const select = document.getElementById('selectPacienteAgenda');
         if (!select) return; 
 
         select.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
-
-        const { data, error } = await window.supabaseCliente
-            .from('pacientes').select('id, nombre_completo').order('nombre_completo', { ascending: true }); 
+        const { data, error } = await window.supabaseCliente.from('pacientes').select('id, nombre_completo').order('nombre_completo', { ascending: true }); 
         if (error) return;
 
         data.forEach(paciente => {
@@ -284,41 +285,57 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    async function cargarCitasProximas() {
-        if(!window.supabaseCliente) return;
-        const listaCitas = document.getElementById('listaCitas');
-        if (!listaCitas) return;
-        
-        listaCitas.innerHTML = '<p style="color: #666; font-style: italic;">Cargando citas...</p>';
+    // Inicializar el calendario estilo Google Calendar
+    function renderizarCalendario() {
+        const calendarEl = document.getElementById('calendarioGoogle');
+        if (!calendarEl) return;
 
-        const hoy = new Date();
-        hoy.setHours(0,0,0,0);
-        
-        const { data, error } = await window.supabaseCliente
-            .from('citas')
-            .select(`id, fecha_hora, evolucion, pacientes ( nombre_completo )`)
-            .gte('fecha_hora', hoy.toISOString())
-            .order('fecha_hora', { ascending: true }); 
-
-        listaCitas.innerHTML = ''; 
-
-        if (error || !data || data.length === 0) {
-            listaCitas.innerHTML = '<p style="color: #666; font-style: italic;">No hay citas próximas agendadas.</p>';
+        // Si ya existe, solo forzamos que se redibuje al tamaño correcto
+        if (calendarioFisio) {
+            calendarioFisio.render();
             return;
         }
 
-        data.forEach(cita => {
-            const fechaObj = new Date(cita.fecha_hora);
-            const fechaFormateada = fechaObj.toLocaleString('es-MX', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
-            const nombrePaciente = cita.pacientes ? cita.pacientes.nombre_completo : 'Paciente Desconocido';
+        calendarioFisio = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'timeGridWeek', // Vista semanal por horas
+            locale: 'es', // En español
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            slotMinTime: '07:00:00', // Empieza a las 7 AM
+            slotMaxTime: '21:00:00', // Termina a las 9 PM
+            allDaySlot: false,
+            // Función que busca las citas en Supabase
+            events: async function(info, successCallback, failureCallback) {
+                if(!window.supabaseCliente) return failureCallback('Sin BD');
+                
+                const { data, error } = await window.supabaseCliente
+                    .from('citas')
+                    .select('id, fecha_hora, fecha_fin, evolucion, pacientes(nombre_completo)')
+                    .gte('fecha_hora', info.startStr)
+                    .lt('fecha_hora', info.endStr);
 
-            listaCitas.innerHTML += `
-                <div style="padding: 10px; border-left: 4px solid var(--primary-color); background: var(--background); margin-bottom: 10px; border-radius: 4px;">
-                    <strong>${nombrePaciente}</strong> - <span style="color: var(--primary-color);">${fechaFormateada}</span><br>
-                    <small>${cita.evolucion || 'Sin notas'}</small>
-                </div>
-            `;
+                if (error) {
+                    console.error("Error cargando calendario:", error);
+                    failureCallback(error);
+                } else {
+                    const eventos = data.map(cita => {
+                        return {
+                            id: cita.id,
+                            title: (cita.pacientes ? cita.pacientes.nombre_completo : 'Sin Nombre') + (cita.evolucion ? ' - ' + cita.evolucion : ''),
+                            start: cita.fecha_hora,
+                            end: cita.fecha_fin || cita.fecha_hora, 
+                            backgroundColor: '#1f73b3',
+                            borderColor: '#1f73b3'
+                        };
+                    });
+                    successCallback(eventos);
+                }
+            }
         });
+        calendarioFisio.render();
     }
 
     const formAgendarCita = document.getElementById('formAgendarCita');
@@ -329,10 +346,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if(!usuarioActual) return alert("Debes iniciar sesión para agendar.");
 
             const pacienteId = document.getElementById('selectPacienteAgenda').value;
-            const fechaHora = document.getElementById('fechaHoraCita').value;
+            const fechaInicio = document.getElementById('fechaHoraCita').value;
+            const fechaFin = document.getElementById('fechaHoraFinCita').value;
             const notas = document.getElementById('notasCita').value; 
 
             if (!pacienteId) return alert("Seleccione un paciente.");
+            if (new Date(fechaFin) <= new Date(fechaInicio)) return alert("La hora de fin debe ser mayor a la de inicio.");
 
             const btnSubmit = formAgendarCita.querySelector('button');
             btnSubmit.innerText = 'Agendando...';
@@ -342,19 +361,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 .from('citas')
                 .insert([{ 
                     paciente_id: pacienteId, 
-                    fecha_hora: fechaHora, 
+                    fecha_hora: fechaInicio, 
+                    fecha_fin: fechaFin, // Guardamos la hora de fin para el bloque del calendario
                     evolucion: notas, 
                     estado: 'pendiente',
-                    creado_por_id: usuarioActual.id // Guarda quién agendó
+                    creado_por_id: usuarioActual.id 
                 }]);
 
             if (!error) {
-                alert('¡Cita agendada con éxito!');
+                alert('¡Cita agendada en el calendario!');
                 formAgendarCita.reset();
                 actualizarDashboardYNotificaciones();
-                cargarCitasProximas(); 
+                if(calendarioFisio) calendarioFisio.refetchEvents(); // Recarga los bloques visuales al instante
+            } else {
+                alert('Error al agendar: ' + error.message);
             }
-            btnSubmit.innerText = 'Agendar';
+            btnSubmit.innerText = 'Agendar en Calendario';
             btnSubmit.disabled = false;
         });
     }
