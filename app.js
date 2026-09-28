@@ -1,8 +1,10 @@
 // Esperar a que el HTML cargue completamente
 document.addEventListener('DOMContentLoaded', () => {
     
+    let usuarioActual = null; // Aquí guardaremos quién inició sesión
+
     // ==========================================
-    // 1. LÓGICA DE LA INTERFAZ (MENÚ Y NAVEGACIÓN)
+    // 1. LÓGICA DE LA INTERFAZ
     // ==========================================
     const seccionDashboard = document.getElementById('seccion-dashboard');
     const seccionRegistro = document.getElementById('seccion-registro');
@@ -36,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btnInicio.classList.add('active');
             if (seccionDashboard) {
                 seccionDashboard.style.display = 'block';
-                actualizarDashboardYNotificaciones(); // Actualiza los números al volver al inicio
+                actualizarDashboardYNotificaciones();
             }
         });
     }
@@ -51,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
- if (btnAgenda) {
+    if (btnAgenda) {
         btnAgenda.addEventListener('click', (e) => {
             e.preventDefault();
             ocultarTodo();
@@ -61,13 +63,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 seccionAgenda.style.display = 'block';
                 if (window.supabaseCliente) {
                     cargarPacientesEnAgenda();
-                    cargarCitasProximas(); // <-- Agrega esta línea
+                    cargarCitasProximas();
                 }
             }
         });
     }
 
-    
     if (btnValoraciones) {
         btnValoraciones.addEventListener('click', (e) => {
             e.preventDefault();
@@ -81,44 +82,44 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-  // ==========================================
+    // ==========================================
     // 2. CONEXIÓN A SUPABASE Y LOGIN
     // ==========================================
-    let usuarioActual = null; // Aquí guardaremos quién inició sesión
-
     try {
         const supabaseUrl = 'https://kywususdtqcfpuivgtwy.supabase.co';
         const supabaseKey = 'sb_publishable_LNEyYuxscWZVaXeGZQ-lkw_lgcpK1ic';
         window.supabaseCliente = window.supabase.createClient(supabaseUrl, supabaseKey);
         
-        // 1. Cargar notificaciones y dashboard al iniciar
         actualizarDashboardYNotificaciones();
-        
-        // 2. Llenar la lista de usuarios en el Login
         cargarUsuariosLogin();
     } catch (error) {
         console.error("Error al conectar con Supabase:", error);
     }
 
-    // Función para traer al Staff
     async function cargarUsuariosLogin() {
         if (!window.supabaseCliente) return;
         const selectLogin = document.getElementById('loginUsuario');
         if (!selectLogin) return;
 
+        console.log("Intentando descargar usuarios desde Supabase...");
         const { data, error } = await window.supabaseCliente.from('staff').select('id, nombre, rol');
         
-        if (!error && data) {
-            data.forEach(user => {
-                const option = document.createElement('option');
-                option.value = user.id;
-                option.textContent = `${user.nombre} (${user.rol})`;
-                selectLogin.appendChild(option);
-            });
+        if (error) {
+            console.error("Supabase rechazó la lectura de la tabla staff:", error);
+            return;
         }
+
+        console.log("Usuarios encontrados:", data);
+        selectLogin.innerHTML = '<option value="">-- Selecciona tu usuario --</option>';
+        
+        data.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.id;
+            option.textContent = `${user.nombre} (${user.rol})`;
+            selectLogin.appendChild(option);
+        });
     }
 
-    // Evento de Iniciar Sesión
     const formLogin = document.getElementById('formLogin');
     if (formLogin) {
         formLogin.addEventListener('submit', async (e) => {
@@ -127,53 +128,44 @@ document.addEventListener('DOMContentLoaded', () => {
             const pinIngresado = document.getElementById('loginPin').value;
             const msjError = document.getElementById('loginError');
 
-            if (!userId) {
-                alert("Por favor selecciona un usuario.");
-                return;
-            }
+            if (!userId) return alert("Selecciona un usuario.");
 
-            // Validar PIN en la base de datos
             const { data, error } = await window.supabaseCliente
                 .from('staff')
                 .select('id, nombre, rol')
                 .eq('id', userId)
                 .eq('pin', pinIngresado)
-                .single(); // Esperamos 1 solo resultado exacto
+                .single(); 
 
             if (error || !data) {
-                msjError.style.display = 'block'; // Mostrar error de PIN
+                msjError.style.display = 'block'; 
             } else {
                 msjError.style.display = 'none';
-                usuarioActual = data; // Guardamos en memoria quién entró
+                usuarioActual = data; 
                 
-                // Ocultar pantalla de login
                 document.getElementById('login-screen').style.display = 'none';
                 
-                // Cambiar el nombre en el menú lateral (abajo a la izquierda)
                 const userInfoIcon = document.querySelector('.user-info p');
                 if(userInfoIcon) userInfoIcon.innerHTML = `<i class="fas fa-user-md"></i> ${data.nombre}`;
-                
-                alert(`¡Bienvenido, ${data.nombre}!`);
             }
         });
     }
 
-    // Evento para el botón de Salir (Cerrar sesión)
     const btnLogout = document.getElementById('btnLogout');
     if (btnLogout) {
         btnLogout.addEventListener('click', () => {
             usuarioActual = null;
-            document.getElementById('loginPin').value = ''; // Limpiar campo de PIN
-            document.getElementById('login-screen').style.display = 'flex'; // Mostrar login de nuevo
+            document.getElementById('loginPin').value = ''; 
+            document.getElementById('login-screen').style.display = 'flex'; 
         });
     }
+
     // ==========================================
-    // 3. CAMPANA DE NOTIFICACIONES Y DASHBOARD
+    // 3. DASHBOARD
     // ==========================================
     async function actualizarDashboardYNotificaciones() {
         if (!window.supabaseCliente) return;
         
-        // Calculamos la fecha de hoy y mañana
         const hoy = new Date();
         hoy.setHours(0,0,0,0);
         const manana = new Date(hoy);
@@ -182,19 +174,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const hoyISO = hoy.toISOString();
         const mananaISO = manana.toISOString();
 
-        // 1. Buscar Citas de Hoy (Para la campana y la tarjeta)
         const { data: citasHoy, error: errorC } = await window.supabaseCliente
-            .from('citas')
-            .select('id')
-            .gte('fecha_hora', hoyISO)
-            .lt('fecha_hora', mananaISO);
+            .from('citas').select('id').gte('fecha_hora', hoyISO).lt('fecha_hora', mananaISO);
 
         if (!errorC && citasHoy) {
-            // Actualizar número grande del Dashboard
             const contadorCitas = document.getElementById('count-citas-hoy');
             if(contadorCitas) contadorCitas.innerText = citasHoy.length;
 
-            // Actualizar la Campanita
             const badge = document.querySelector('.badge');
             if (badge) {
                 badge.innerText = citasHoy.length; 
@@ -202,12 +188,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 2. Buscar Pacientes Nuevos (Registrados Hoy)
         const { data: pacientesHoy, error: errorP } = await window.supabaseCliente
-            .from('pacientes')
-            .select('id')
-            .gte('fecha_registro', hoyISO)
-            .lt('fecha_registro', mananaISO);
+            .from('pacientes').select('id').gte('fecha_registro', hoyISO).lt('fecha_registro', mananaISO);
 
         if (!errorP && pacientesHoy) {
             const contadorPacientes = document.getElementById('count-pacientes-nuevos');
@@ -223,6 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formPaciente.addEventListener('submit', async (e) => {
             e.preventDefault(); 
             if(!window.supabaseCliente) return alert("Error de conexión a la BD");
+            if(!usuarioActual) return alert("Debes iniciar sesión para registrar.");
 
             const nombre = document.getElementById('nombrePaciente').value;
             const edad = parseInt(document.getElementById('edadPaciente').value);
@@ -235,14 +218,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const { data, error } = await window.supabaseCliente
                 .from('pacientes')
-                .insert([{ nombre_completo: nombre, edad: edad, detalles_clinicos: detalles, valoracion_inicial: valoracion }]);
+                .insert([{ 
+                    nombre_completo: nombre, 
+                    edad: edad, 
+                    detalles_clinicos: detalles, 
+                    valoracion_inicial: valoracion,
+                    creado_por_id: usuarioActual.id // Guarda quién lo registró
+                }]);
 
             if (error) {
                 alert('Hubo un error al registrar: ' + error.message);
             } else {
                 alert('¡Paciente registrado con éxito!');
                 formPaciente.reset();
-                actualizarDashboardYNotificaciones(); // <-- Actualiza los números del inicio
+                actualizarDashboardYNotificaciones(); 
                 
                 ocultarTodo();
                 limpiarMenu();
@@ -257,11 +246,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-   // ==========================================
-    // 5. CARGAR Y GUARDAR AGENDA
     // ==========================================
-    
-    // Función 1: Cargar la lista desplegable de pacientes
+    // 5. AGENDA
+    // ==========================================
     async function cargarPacientesEnAgenda() {
         if(!window.supabaseCliente) return;
         const select = document.getElementById('selectPacienteAgenda');
@@ -270,10 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
         select.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
 
         const { data, error } = await window.supabaseCliente
-            .from('pacientes')
-            .select('id, nombre_completo')
-            .order('nombre_completo', { ascending: true }); 
-        
+            .from('pacientes').select('id, nombre_completo').order('nombre_completo', { ascending: true }); 
         if (error) return;
 
         data.forEach(paciente => {
@@ -284,7 +268,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Función 2 (NUEVA): Cargar las citas agendadas en la lista lateral
     async function cargarCitasProximas() {
         if(!window.supabaseCliente) return;
         const listaCitas = document.getElementById('listaCitas');
@@ -292,35 +275,25 @@ document.addEventListener('DOMContentLoaded', () => {
         
         listaCitas.innerHTML = '<p style="color: #666; font-style: italic;">Cargando citas...</p>';
 
-        // Traemos todas las citas futuras (de hoy en adelante) y hacemos un 'join' para traer el nombre del paciente
         const hoy = new Date();
         hoy.setHours(0,0,0,0);
         
         const { data, error } = await window.supabaseCliente
             .from('citas')
-            .select(`
-                id,
-                fecha_hora,
-                evolucion,
-                pacientes ( nombre_completo )
-            `)
+            .select(`id, fecha_hora, evolucion, pacientes ( nombre_completo )`)
             .gte('fecha_hora', hoy.toISOString())
-            .order('fecha_hora', { ascending: true }); // Ordenadas por fecha
+            .order('fecha_hora', { ascending: true }); 
 
-        listaCitas.innerHTML = ''; // Limpiamos el texto de 'cargando'
+        listaCitas.innerHTML = ''; 
 
         if (error || !data || data.length === 0) {
             listaCitas.innerHTML = '<p style="color: #666; font-style: italic;">No hay citas próximas agendadas.</p>';
             return;
         }
 
-        // Dibujar cada cita en pantalla
         data.forEach(cita => {
             const fechaObj = new Date(cita.fecha_hora);
-            const fechaFormateada = fechaObj.toLocaleString('es-MX', { 
-                weekday: 'short', month: 'short', day: 'numeric', 
-                hour: '2-digit', minute:'2-digit' 
-            });
+            const fechaFormateada = fechaObj.toLocaleString('es-MX', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
             const nombrePaciente = cita.pacientes ? cita.pacientes.nombre_completo : 'Paciente Desconocido';
 
             listaCitas.innerHTML += `
@@ -332,18 +305,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Función 3: El evento de Guardar Nueva Cita
     const formAgendarCita = document.getElementById('formAgendarCita');
     if (formAgendarCita) {
         formAgendarCita.addEventListener('submit', async (e) => {
             e.preventDefault();
             if(!window.supabaseCliente) return;
+            if(!usuarioActual) return alert("Debes iniciar sesión para agendar.");
 
             const pacienteId = document.getElementById('selectPacienteAgenda').value;
             const fechaHora = document.getElementById('fechaHoraCita').value;
             const notas = document.getElementById('notasCita').value; 
 
-            if (!pacienteId) return alert("Por favor seleccione un paciente.");
+            if (!pacienteId) return alert("Seleccione un paciente.");
 
             const btnSubmit = formAgendarCita.querySelector('button');
             btnSubmit.innerText = 'Agendando...';
@@ -351,13 +324,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const { error } = await window.supabaseCliente
                 .from('citas')
-                .insert([{ paciente_id: pacienteId, fecha_hora: fechaHora, evolucion: notas, estado: 'pendiente' }]);
+                .insert([{ 
+                    paciente_id: pacienteId, 
+                    fecha_hora: fechaHora, 
+                    evolucion: notas, 
+                    estado: 'pendiente',
+                    creado_por_id: usuarioActual.id // Guarda quién agendó
+                }]);
 
             if (!error) {
                 alert('¡Cita agendada con éxito!');
                 formAgendarCita.reset();
                 actualizarDashboardYNotificaciones();
-                cargarCitasProximas(); // <--- Actualiza la lista lateral al instante
+                cargarCitasProximas(); 
             }
             btnSubmit.innerText = 'Agendar';
             btnSubmit.disabled = false;
@@ -365,7 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 6. VALORACIONES Y EXPEDIENTE CLÍNICO
+    // 6. VALORACIONES
     // ==========================================
     async function cargarPacientesEnValoraciones() {
         if(!window.supabaseCliente) return;
@@ -374,11 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         select.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
         const { data, error } = await window.supabaseCliente.from('pacientes').select('id, nombre_completo').order('nombre_completo', { ascending: true }); 
-        
-        if (error) {
-            console.error("Error al cargar pacientes para valoración:", error);
-            return;
-        }
+        if (error) return;
 
         data.forEach(paciente => {
             const option = document.createElement('option');
@@ -400,18 +375,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // --- 1. Traer datos del paciente ---
             const { data: paciente, error: errorP } = await window.supabaseCliente
-                .from('pacientes')
-                .select('*')
-                .eq('id', pacienteId)
-                .single();
-
-            if (errorP) {
-                console.error("Error al buscar ficha de paciente:", errorP);
-                if(listaCitas) listaCitas.innerHTML = `<p style="color:red;">Error al cargar paciente: ${errorP.message}</p>`;
-                return;
-            }
+                .from('pacientes').select('*').eq('id', pacienteId).single();
 
             if (paciente && contenedorExpediente) {
                 document.getElementById('expNombre').innerText = paciente.nombre_completo;
@@ -421,20 +386,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 contenedorExpediente.style.display = 'block';
             }
 
-            // --- 2. Traer historial de citas ---
             if(listaCitas) listaCitas.innerHTML = '<p>Cargando historial...</p>'; 
             
+            // Unimos con la tabla staff para saber el nombre del Fisio
             const { data: citas, error: errorC } = await window.supabaseCliente
                 .from('citas')
-                .select('*')
+                .select('*, staff(nombre)')
                 .eq('paciente_id', pacienteId)
                 .order('fecha_hora', { ascending: false }); 
-
-            if (errorC) {
-                console.error("Error al cargar el historial de citas:", errorC);
-                if(listaCitas) listaCitas.innerHTML = `<p style="color:red;">Error al cargar historial: ${errorC.message}</p>`;
-                return;
-            }
 
             if(listaCitas) listaCitas.innerHTML = ''; 
 
@@ -442,10 +401,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 citas.forEach(cita => {
                     const fechaObj = new Date(cita.fecha_hora);
                     const fechaFormateada = fechaObj.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+                    const nombreFisio = cita.staff ? cita.staff.nombre : 'Desconocido';
                     
                     listaCitas.innerHTML += `
                         <div style="background: var(--background); padding: 15px; margin-bottom: 15px; border-left: 4px solid var(--primary-color); border-radius: 4px;">
-                            <strong>Cita:</strong> ${fechaFormateada} <br>
+                            <strong>Cita:</strong> ${fechaFormateada} <span style="float:right; color:#666; font-size: 0.85rem;">Fisio: ${nombreFisio}</span><br>
                             <strong>Evolución / Notas:</strong> ${cita.evolucion || 'Sin notas'} <br>
                             <small style="color: #666;"><strong>Estado:</strong> ${cita.estado.toUpperCase()}</small>
                         </div>
@@ -457,4 +417,4 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-}); // <-- Fin del DOMContentLoaded
+});
