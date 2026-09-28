@@ -123,29 +123,117 @@
             </div>
         </section>
 
-        <!-- Formulario de Registro de Paciente -->
+     <!-- Formulario de Registro de Paciente (NUEVO EXPEDIENTE CLÍNICO) -->
         <section id="seccion-registro" class="patient-registration" style="padding: 30px; display: none;">
-            <h2>Registrar Nuevo Paciente</h2>
+            <h2>Expediente Clínico y Valoración</h2>
             <form id="formNuevoPaciente" style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-top: 20px;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                
+                <!-- 1. Datos Generales -->
+                <h3 style="border-bottom: 2px solid var(--secondary-color); padding-bottom: 5px; color: var(--primary-color);">1. Datos Generales</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 15px;">
+                    <div><label>Nombre Completo:</label><input type="text" id="nombrePaciente" required style="width: 100%; padding: 8px;"></div>
+                    <div><label>Edad:</label><input type="number" id="edadPaciente" required style="width: 100%; padding: 8px;"></div>
+                    <div><label>Teléfono de Emergencia:</label><input type="text" id="telEmergencia" required style="width: 100%; padding: 8px;"></div>
+                </div>
+
+                <!-- 2. Antecedentes -->
+                <h3 style="border-bottom: 2px solid var(--secondary-color); padding-bottom: 5px; color: var(--primary-color); margin-top: 25px;">2. Antecedentes</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
                     <div>
-                        <label>Nombre Completo:</label>
-                        <input type="text" id="nombrePaciente" required style="width: 100%; padding: 8px; margin-top: 5px;">
+                        <label><strong>Antecedentes Personales:</strong></label><br>
+                        <input type="checkbox" name="ant_personal" value="Alcohol"> Alcohol
+                        <input type="checkbox" name="ant_personal" value="Tabaco"> Tabaco
+                        <input type="checkbox" name="ant_personal" value="Drogas"> Drogas
+                        <input type="checkbox" name="ant_personal" value="Actividad Física"> Actividad Física
+                        <input type="checkbox" name="ant_personal" value="Negado"> Negado
                     </div>
                     <div>
-                        <label>Edad:</label>
-                        <input type="number" id="edadPaciente" required style="width: 100%; padding: 8px; margin-top: 5px;">
+                        <label><strong>Antecedentes Familiares:</strong></label>
+                        <textarea id="antFamiliares" rows="2" style="width: 100%; padding: 8px;"></textarea>
                     </div>
                 </div>
-                <div style="margin-top: 15px;">
-                    <label>Detalles Clínicos / Antecedentes:</label>
-                    <textarea id="detallesClinicos" rows="3" style="width: 100%; padding: 8px; margin-top: 5px;"></textarea>
+
+                <!-- 3. Pruebas y Exploración -->
+                <h3 style="border-bottom: 2px solid var(--secondary-color); padding-bottom: 5px; color: var(--primary-color); margin-top: 25px;">3. Pruebas y Exploración</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 15px;">
+                    <div>
+                        <label><strong>Reflejos:</strong></label><br>
+                        <input type="checkbox" name="reflejos" value="Bicipital"> Bicipital<br>
+                        <input type="checkbox" name="reflejos" value="Tricipital"> Tricipital<br>
+                        <input type="checkbox" name="reflejos" value="Rotuliano"> Rotuliano<br>
+                        <input type="checkbox" name="reflejos" value="Aquiliano"> Aquiliano
+                    </div>
+                    <div>
+                        <label><strong>Sensibilidad:</strong></label><br>
+                        <input type="checkbox" name="sensibilidad" value="Táctil"> Táctil
+                        <input type="checkbox" name="sensibilidad" value="Térmica"> Térmica<br>
+                        <input type="checkbox" name="sensibilidad" value="Dolorosa"> Dolorosa
+                        <input type="checkbox" name="sensibilidad" value="Topognosia"> Topognosia<br>
+                        <input type="checkbox" name="sensibilidad" value="Discriminación"> Discriminación
+                        <input type="checkbox" name="sensibilidad" value="Presión"> Presión<br>
+                        <input type="checkbox" name="sensibilidad" value="Vibración"> Vibración
+                    </div>
+                    <div>
+                        <label><strong>Tipo de Marcha:</strong></label>
+                        <select id="tipoMarcha" style="width: 100%; padding: 8px; margin-top: 5px;">
+                            <option value="Normal">Normal</option>
+                            <option value="Antiálgica">Antiálgica</option>
+                            <option value="Hemiplégica">Hemiplégica</option>
+                            <option value="Espástica">Espástica</option>
+                            <option value="Atáxica">Atáxica</option>
+                            <option value="Coreica">Coreica</option>
+                            <option value="Parkinsoniana">Parkinsoniana</option>
+                            <option value="Stepagge">Stepagge</option>
+                            <option value="Trendelemburg">Trendelemburg</option>
+                        </select>
+                        <label style="margin-top: 10px; display: block;"><strong>Goniometría:</strong></label>
+                        <input type="text" id="goniometria" style="width: 100%; padding: 8px;" placeholder="Articulación y grados">
+                    </div>
                 </div>
-                <div style="margin-top: 15px;">
-                    <label>Valoración Inicial:</label>
-                    <textarea id="valoracionInicial" rows="3" style="width: 100%; padding: 8px; margin-top: 5px;"></textarea>
+
+                <!-- 4. Escala de Dolor y Mapa -->
+                <h3 style="border-bottom: 2px solid var(--secondary-color); padding-bottom: 5px; color: var(--primary-color); margin-top: 25px;">4. Escala de Dolor</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
+                    <div>
+                        <label><strong>Nivel de Dolor (0 al 10):</strong> <span id="valorDolor">0</span> - Sin dolor</label>
+                        <input type="range" id="nivelDolor" min="0" max="10" value="0" style="width: 100%; margin-top: 10px;" oninput="document.getElementById('valorDolor').innerText = this.value">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #666;">
+                            <span>0 (Leve)</span><span>5 (Moderado)</span><span>10 (Insoportable)</span>
+                        </div>
+                        
+                        <label style="margin-top: 20px; display: block;"><strong>Zonas de dolor en el cuerpo:</strong></label>
+                        <textarea id="zonasDolor" rows="3" placeholder="Ej: Hombro derecho, zona lumbar izquierda..." style="width: 100%; padding: 8px;"></textarea>
+                    </div>
+                    <div style="text-align: center; border: 1px dashed #ccc; padding: 10px; border-radius: 5px;">
+                        <p style="font-size: 0.8rem; color: #666; margin-bottom: 5px;">Referencia Anatómica (Frente y Dorso)</p>
+                        <!-- Usamos una imagen genérica temporal del cuerpo humano que puedes cambiar después por la oficial -->
+                        <img src="https://cdn.pixabay.com/photo/2013/07/12/17/39/human-152173_1280.png" alt="Cuerpo Humano" style="height: 180px; opacity: 0.5;">
+                    </div>
                 </div>
-                <button type="submit" style="margin-top: 20px; background: var(--primary-color); color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">Guardar Paciente y Agendar Cita</button>
+
+                <!-- 5. Servicios y Notas Finales -->
+                <h3 style="border-bottom: 2px solid var(--secondary-color); padding-bottom: 5px; color: var(--primary-color); margin-top: 25px;">5. Servicios y Notas</h3>
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 15px; margin-top: 15px;">
+                    <div>
+                        <label><strong>Servicio a realizar:</strong></label>
+                        <select id="servicioContratado" required style="width: 100%; padding: 8px; margin-top: 5px; border: 2px solid var(--primary-color);">
+                            <option value="">-- Seleccionar --</option>
+                            <option value="Valoración - $100">Valoración $100</option>
+                            <option value="Sesión - $450">Sesión: $450</option>
+                            <option value="Paquete de 5 sesiones - $2000">Paquete 5 sesiones $2000 (Normal $2250)</option>
+                            <option value="Media Descarga - $400">Media Descarga $400</option>
+                            <option value="Descarga Completa - $700">Descarga Completa $700</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label><strong>Notas Terapéuticas (Observaciones):</strong></label>
+                        <textarea id="notasTerapeuticas" rows="3" style="width: 100%; padding: 8px; margin-top: 5px;"></textarea>
+                    </div>
+                </div>
+
+                <button type="submit" style="margin-top: 25px; width: 100%; font-size: 1.1rem; background: var(--primary-color); color: white; padding: 15px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                    Guardar Expediente y Agendar
+                </button>
             </form>
         </section>
 
