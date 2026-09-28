@@ -180,20 +180,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let calendarioFisio; 
     let listaGlobalPacientes = [];
 
-    // Descarga e inyecta a los pacientes en los Selects y en el Modal del Directorio
     async function cargarPacientesGlobales() {
         if(!window.supabaseCliente) return;
         const { data } = await window.supabaseCliente.from('pacientes').select('id, nombre_completo').order('nombre_completo', { ascending: true }); 
         if (data) {
             listaGlobalPacientes = data;
             
-            // Llenar Selects
             const selectA = document.getElementById('selectPacienteAgenda');
             const selectV = document.getElementById('selectPacienteValoracion');
             if(selectA) selectA.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
             if(selectV) selectV.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
             
-            // Llenar Ventana Flotante del Directorio
             const contenedorDir = document.getElementById('listaCompletaPacientes');
             if(contenedorDir) contenedorDir.innerHTML = '';
 
@@ -204,7 +201,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const optV = document.createElement('option'); optV.value = p.id; optV.textContent = p.nombre_completo;
                 if(selectV) selectV.appendChild(optV);
 
-                // Agregar al directorio flotante con sus dos botones
                 if(contenedorDir) {
                     contenedorDir.innerHTML += `
                         <div class="paciente-item">
@@ -356,18 +352,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 7. CONTROLES DE LA VENTANA FLOTANTE (MODAL)
+    // 7. CONTROLES DE LA VENTANA FLOTANTE (MODAL DIRECTORIO)
     // ==========================================
     const modalDirectorio = document.getElementById('modal-directorio');
     const btnCerrarDirectorio = document.getElementById('btnCerrarDirectorio');
     
-    // Abre el modal desde los botones azules
+    // Abrir modal desde los botones azules
     window.abrirDirectorio = function() {
         if(modalDirectorio) modalDirectorio.style.display = 'flex';
-        cargarPacientesGlobales(); // Refresca la lista
+        cargarPacientesGlobales(); 
     };
 
-    // Cierra el modal desde la 'X'
+    // Cerrar modal desde la 'X'
     if(btnCerrarDirectorio) {
         btnCerrarDirectorio.addEventListener('click', (e) => {
             e.preventDefault();
@@ -375,9 +371,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Acción al presionar "Agendar" o "Expediente" adentro del modal
+    // Enviar a la pestaña seleccionada
     window.accionDirectorio = async function(pacienteId, destino) {
-        modalDirectorio.style.display = 'none'; // Oculta el modal
+        modalDirectorio.style.display = 'none'; 
         
         if(destino === 'agenda') {
             document.getElementById('menu-agenda').click();
@@ -387,12 +383,15 @@ document.addEventListener('DOMContentLoaded', () => {
             await cargarPacientesGlobales(); 
             const selectVal = document.getElementById('selectPacienteValoracion');
             selectVal.value = pacienteId;
-            selectVal.dispatchEvent(new Event('change')); // Fuerza que aparezca el historial
+            selectVal.dispatchEvent(new Event('change')); 
         }
     };
-}); 
 
-// Funciones globales para citas
+}); // <-- FIN DEL DOMContentLoaded
+
+// ==========================================
+// FUNCIONES GLOBALES (ELIMINAR Y ACTUALIZAR BD)
+// ==========================================
 window.actualizarCitaBD = async function(citaId, nuevoEstado) {
     if(!window.supabaseCliente) return alert("Error");
     const nuevaNota = document.getElementById(`nota-${citaId}`).value;
