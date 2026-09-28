@@ -191,24 +191,17 @@
                     </div>
                 </div>
 
-                <!-- 4. Escala de Dolor y Mapa -->
+                <!-- 4. Escala de Dolor -->
                 <h3 style="border-bottom: 2px solid var(--secondary-color); padding-bottom: 5px; color: var(--primary-color); margin-top: 25px;">4. Escala de Dolor</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
-                    <div>
-                        <label><strong>Nivel de Dolor (0 al 10):</strong> <span id="valorDolor">0</span> - Sin dolor</label>
-                        <input type="range" id="nivelDolor" min="0" max="10" value="0" style="width: 100%; margin-top: 10px;" oninput="document.getElementById('valorDolor').innerText = this.value">
-                        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #666;">
-                            <span>0 (Leve)</span><span>5 (Moderado)</span><span>10 (Insoportable)</span>
-                        </div>
-                        
-                        <label style="margin-top: 20px; display: block;"><strong>Zonas de dolor en el cuerpo:</strong></label>
-                        <textarea id="zonasDolor" rows="3" placeholder="Ej: Hombro derecho, zona lumbar izquierda..." style="width: 100%; padding: 8px;"></textarea>
+                <div style="margin-top: 15px;">
+                    <label><strong>Nivel de Dolor (0 al 10):</strong> <span id="valorDolor">0</span> - Sin dolor</label>
+                    <input type="range" id="nivelDolor" min="0" max="10" value="0" style="width: 100%; margin-top: 10px;" oninput="document.getElementById('valorDolor').innerText = this.value">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #666;">
+                        <span>0 (Leve)</span><span>5 (Moderado)</span><span>10 (Insoportable)</span>
                     </div>
-                    <div style="text-align: center; border: 1px dashed #ccc; padding: 10px; border-radius: 5px;">
-                        <p style="font-size: 0.8rem; color: #666; margin-bottom: 5px;">Referencia Anatómica (Frente y Dorso)</p>
-                        <!-- Usamos una imagen genérica temporal del cuerpo humano que puedes cambiar después por la oficial -->
-                        <img src="https://cdn.pixabay.com/photo/2013/07/12/17/39/human-152173_1280.png" alt="Cuerpo Humano" style="height: 180px; opacity: 0.5;">
-                    </div>
+                    
+                    <label style="margin-top: 20px; display: block;"><strong>Zonas de dolor en el cuerpo:</strong></label>
+                    <textarea id="zonasDolor" rows="3" placeholder="Describe detalladamente las zonas. Ej: Hombro derecho, zona lumbar izquierda irradiando a la pierna..." style="width: 100%; padding: 8px; margin-top: 5px;"></textarea>
                 </div>
 
                 <!-- 5. Servicios y Notas Finales -->
