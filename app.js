@@ -81,20 +81,92 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+  // ==========================================
+    // 2. CONEXIÓN A SUPABASE Y LOGIN
     // ==========================================
-    // 2. CONEXIÓN A SUPABASE Y BASE DE DATOS
-    // ==========================================
+    let usuarioActual = null; // Aquí guardaremos quién inició sesión
+
     try {
         const supabaseUrl = 'https://kywususdtqcfpuivgtwy.supabase.co';
         const supabaseKey = 'sb_publishable_LNEyYuxscWZVaXeGZQ-lkw_lgcpK1ic';
         window.supabaseCliente = window.supabase.createClient(supabaseUrl, supabaseKey);
         
-        // Cargar notificaciones y dashboard al iniciar
+        // 1. Cargar notificaciones y dashboard al iniciar
         actualizarDashboardYNotificaciones();
+        
+        // 2. Llenar la lista de usuarios en el Login
+        cargarUsuariosLogin();
     } catch (error) {
         console.error("Error al conectar con Supabase:", error);
     }
 
+    // Función para traer al Staff
+    async function cargarUsuariosLogin() {
+        if (!window.supabaseCliente) return;
+        const selectLogin = document.getElementById('loginUsuario');
+        if (!selectLogin) return;
+
+        const { data, error } = await window.supabaseCliente.from('staff').select('id, nombre, rol');
+        
+        if (!error && data) {
+            data.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.textContent = `${user.nombre} (${user.rol})`;
+                selectLogin.appendChild(option);
+            });
+        }
+    }
+
+    // Evento de Iniciar Sesión
+    const formLogin = document.getElementById('formLogin');
+    if (formLogin) {
+        formLogin.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const userId = document.getElementById('loginUsuario').value;
+            const pinIngresado = document.getElementById('loginPin').value;
+            const msjError = document.getElementById('loginError');
+
+            if (!userId) {
+                alert("Por favor selecciona un usuario.");
+                return;
+            }
+
+            // Validar PIN en la base de datos
+            const { data, error } = await window.supabaseCliente
+                .from('staff')
+                .select('id, nombre, rol')
+                .eq('id', userId)
+                .eq('pin', pinIngresado)
+                .single(); // Esperamos 1 solo resultado exacto
+
+            if (error || !data) {
+                msjError.style.display = 'block'; // Mostrar error de PIN
+            } else {
+                msjError.style.display = 'none';
+                usuarioActual = data; // Guardamos en memoria quién entró
+                
+                // Ocultar pantalla de login
+                document.getElementById('login-screen').style.display = 'none';
+                
+                // Cambiar el nombre en el menú lateral (abajo a la izquierda)
+                const userInfoIcon = document.querySelector('.user-info p');
+                if(userInfoIcon) userInfoIcon.innerHTML = `<i class="fas fa-user-md"></i> ${data.nombre}`;
+                
+                alert(`¡Bienvenido, ${data.nombre}!`);
+            }
+        });
+    }
+
+    // Evento para el botón de Salir (Cerrar sesión)
+    const btnLogout = document.getElementById('btnLogout');
+    if (btnLogout) {
+        btnLogout.addEventListener('click', () => {
+            usuarioActual = null;
+            document.getElementById('loginPin').value = ''; // Limpiar campo de PIN
+            document.getElementById('login-screen').style.display = 'flex'; // Mostrar login de nuevo
+        });
+    }
     // ==========================================
     // 3. CAMPANA DE NOTIFICACIONES Y DASHBOARD
     // ==========================================
