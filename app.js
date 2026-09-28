@@ -214,26 +214,53 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
    // ==========================================
-    // 5. AGENDA Y FULLCALENDAR
+    // 5. AGENDA, FULLCALENDAR Y BUSCADOR INTELIGENTE
     // ==========================================
     let calendarioFisio; 
+    let listaGlobalPacientes = []; // Memoria para las búsquedas
 
-    async function cargarPacientesEnAgenda() {
+    // Descarga a los pacientes 1 sola vez y los guarda en memoria
+    async function cargarPacientesGlobales() {
         if(!window.supabaseCliente) return;
-        const select = document.getElementById('selectPacienteAgenda');
-        if (!select) return; 
-
-        select.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
         const { data, error } = await window.supabaseCliente.from('pacientes').select('id, nombre_completo').order('nombre_completo', { ascending: true }); 
-        if (error) return;
+        if (!error && data) {
+            listaGlobalPacientes = data;
+            filtrarSelectPacientes('selectPacienteAgenda', '');
+            filtrarSelectPacientes('selectPacienteValoracion', '');
+        }
+    }
 
-        data.forEach(paciente => {
+    // Inyecta solo los pacientes que coinciden con la búsqueda
+    function filtrarSelectPacientes(selectId, textoFiltro) {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        select.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
+        
+        const pacientesFiltrados = listaGlobalPacientes.filter(p => 
+            p.nombre_completo.toLowerCase().includes(textoFiltro.toLowerCase())
+        );
+
+        pacientesFiltrados.forEach(paciente => {
             const option = document.createElement('option');
             option.value = paciente.id;
             option.textContent = paciente.nombre_completo;
             select.appendChild(option);
         });
     }
+
+    // Activamos el motor de búsqueda cada que el usuario escribe
+    const buscadorAgenda = document.getElementById('buscadorAgenda');
+    if(buscadorAgenda) {
+        buscadorAgenda.addEventListener('input', (e) => filtrarSelectPacientes('selectPacienteAgenda', e.target.value));
+    }
+    const buscadorValoracion = document.getElementById('buscadorValoracion');
+    if(buscadorValoracion) {
+        buscadorValoracion.addEventListener('input', (e) => filtrarSelectPacientes('selectPacienteValoracion', e.target.value));
+    }
+
+    // Compatibilidad con el menú lateral (Para no romper la lógica anterior)
+    async function cargarPacientesEnAgenda() { await cargarPacientesGlobales(); }
+    async function cargarPacientesEnValoraciones() { await cargarPacientesGlobales(); }
 
     function renderizarCalendario() {
         const calendarEl = document.getElementById('calendarioGoogle');
@@ -274,13 +301,8 @@ document.addEventListener('DOMContentLoaded', () => {
             eventClick: async function(info) {
                 const pacienteId = info.event.extendedProps.paciente_id;
                 if(pacienteId) {
-                    // 1. Damos clic en la pestaña Valoraciones para abrirla
                     document.getElementById('menu-valoraciones').click(); 
-                    
-                    // 2. ESPERAMOS obligatoriamente a que Supabase llene la lista desplegable
-                    await cargarPacientesEnValoraciones(); 
-                    
-                    // 3. Una vez llena, ahora sí seleccionamos al paciente y cargamos su historial
+                    await cargarPacientesGlobales(); 
                     const selectVal = document.getElementById('selectPacienteValoracion');
                     selectVal.value = pacienteId;
                     selectVal.dispatchEvent(new Event('change')); 
@@ -328,25 +350,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 6. VALORACIONES (EDICIÓN, REPROGRAMACIÓN Y ELIMINACIÓN)
+    // 6. VALORACIONES (CON EDICIÓN DE ESTADO Y NOTAS)
     // ==========================================
-    async function cargarPacientesEnValoraciones() {
-        if(!window.supabaseCliente) return;
-        const select = document.getElementById('selectPacienteValoracion');
-        if (!select) return; 
-
-        select.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
-        const { data, error } = await window.supabaseCliente.from('pacientes').select('id, nombre_completo').order('nombre_completo', { ascending: true }); 
-        if (error) return;
-
-        data.forEach(paciente => {
-            const option = document.createElement('option');
-            option.value = paciente.id;
-            option.textContent = paciente.nombre_completo;
-            select.appendChild(option);
-        });
-    }
-
     const selectPacienteValoracion = document.getElementById('selectPacienteValoracion');
     if (selectPacienteValoracion) {
         selectPacienteValoracion.addEventListener('change', async (e) => {
@@ -380,7 +385,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (citas && citas.length > 0 && listaCitas) {
                 citas.forEach(cita => {
-                    // Calculamos la hora local para que los inputs editables se muestren correctamente
                     const fechaObj = new Date(cita.fecha_hora);
                     const tzOffset = fechaObj.getTimezoneOffset() * 60000;
                     const valorInicio = (new Date(fechaObj - tzOffset)).toISOString().slice(0, 16);
@@ -396,7 +400,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     listaCitas.innerHTML += `
                         <div style="background: var(--background); padding: 15px; margin-bottom: 15px; border-left: 4px solid ${colorBorde}; border-radius: 4px; position: relative;">
                             
-                            <!-- Botón de Eliminar -->
                             <button onclick="eliminarCitaBD('${cita.id}')" style="position: absolute; top: 15px; right: 15px; background: #dc3545; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">
                                 <i class="fas fa-trash"></i> Eliminar
                             </button>
@@ -405,16 +408,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <span style="color:#666; font-size: 0.85rem;">Fisio: <strong>${nombreFisio}</strong> | Servicio: <strong>${cita.tipo_cita || 'No especificado'}</strong></span>
                             </div>
 
-                            <!-- Campos Editables para Reprogramar -->
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                                <div>
-                                    <label style="font-size: 0.8rem; font-weight: bold;">Inicio:</label>
-                                    <input type="datetime-local" id="inicio-${cita.id}" value="${valorInicio}" style="width: 100%; padding: 5px; font-size: 0.9rem; border: 1px solid #ccc; border-radius: 3px;">
-                                </div>
-                                <div>
-                                    <label style="font-size: 0.8rem; font-weight: bold;">Fin:</label>
-                                    <input type="datetime-local" id="fin-${cita.id}" value="${valorFin}" style="width: 100%; padding: 5px; font-size: 0.9rem; border: 1px solid #ccc; border-radius: 3px;">
-                                </div>
+                                <div><label style="font-size: 0.8rem; font-weight: bold;">Inicio:</label><input type="datetime-local" id="inicio-${cita.id}" value="${valorInicio}" style="width: 100%; padding: 5px; font-size: 0.9rem; border: 1px solid #ccc; border-radius: 3px;"></div>
+                                <div><label style="font-size: 0.8rem; font-weight: bold;">Fin:</label><input type="datetime-local" id="fin-${cita.id}" value="${valorFin}" style="width: 100%; padding: 5px; font-size: 0.9rem; border: 1px solid #ccc; border-radius: 3px;"></div>
                             </div>
                             
                             <label style="display:block; margin-top:10px; font-weight:bold; font-size: 0.9rem;">Notas / Evolución:</label>
@@ -422,7 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             
                             <div style="margin-top: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                                 <strong style="color: ${colorBorde}; font-size: 0.9rem; width: 100px;">${estadoTexto}</strong>
-                                <button onclick="actualizarCitaBD('${cita.id}', 'pendiente')" style="padding: 6px 12px; cursor:pointer; font-size:0.85rem; border: 1px solid #ccc; background: white; border-radius: 4px;">Guardar Cambios (Pendiente)</button>
+                                <button onclick="actualizarCitaBD('${cita.id}', 'pendiente')" style="padding: 6px 12px; cursor:pointer; font-size:0.85rem; border: 1px solid #ccc; background: white; border-radius: 4px;">Guardar (Pendiente)</button>
                                 <button onclick="actualizarCitaBD('${cita.id}', 'listo')" style="padding: 6px 12px; cursor:pointer; background: #28a745; color:white; border:none; border-radius:4px; font-size:0.85rem;">Guardar y Marcar Listo</button>
                             </div>
                         </div>
@@ -440,8 +436,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==========================================
 window.actualizarCitaBD = async function(citaId, nuevoEstado) {
     if(!window.supabaseCliente) return alert("Error de conexión");
-    
-    // Capturamos los nuevos datos del formulario
     const nuevaNota = document.getElementById(`nota-${citaId}`).value;
     const nuevaFechaInicio = new Date(document.getElementById(`inicio-${citaId}`).value).toISOString();
     const nuevaFechaFin = new Date(document.getElementById(`fin-${citaId}`).value).toISOString();
@@ -450,19 +444,12 @@ window.actualizarCitaBD = async function(citaId, nuevoEstado) {
         return alert("Error: La hora de fin debe ser mayor a la de inicio.");
     }
 
-    const { error } = await window.supabaseCliente
-        .from('citas')
-        .update({ 
-            estado: nuevoEstado, 
-            evolucion: nuevaNota,
-            fecha_hora: nuevaFechaInicio,
-            fecha_fin: nuevaFechaFin
-        })
+    const { error } = await window.supabaseCliente.from('citas')
+        .update({ estado: nuevoEstado, evolucion: nuevaNota, fecha_hora: nuevaFechaInicio, fecha_fin: nuevaFechaFin })
         .eq('id', citaId);
         
-    if (error) {
-        alert("Error al actualizar: " + error.message);
-    } else {
+    if (error) alert("Error al actualizar: " + error.message);
+    else {
         alert("¡Cita reprogramada y actualizada correctamente!");
         document.getElementById('selectPacienteValoracion').dispatchEvent(new Event('change'));
         if(typeof calendarioFisio !== 'undefined' && calendarioFisio) calendarioFisio.refetchEvents();
@@ -471,18 +458,12 @@ window.actualizarCitaBD = async function(citaId, nuevoEstado) {
 
 window.eliminarCitaBD = async function(citaId) {
     if(!window.supabaseCliente) return alert("Error de conexión");
-    
     const confirmacion = confirm("¿Estás seguro de que deseas ELIMINAR esta cita? Esta acción no se puede deshacer.");
     if(!confirmacion) return;
 
-    const { error } = await window.supabaseCliente
-        .from('citas')
-        .delete()
-        .eq('id', citaId);
-
-    if (error) {
-        alert("Error al eliminar: " + error.message);
-    } else {
+    const { error } = await window.supabaseCliente.from('citas').delete().eq('id', citaId);
+    if (error) alert("Error al eliminar: " + error.message);
+    else {
         alert("Cita eliminada correctamente.");
         document.getElementById('selectPacienteValoracion').dispatchEvent(new Event('change'));
         if(typeof calendarioFisio !== 'undefined' && calendarioFisio) calendarioFisio.refetchEvents();
