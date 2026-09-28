@@ -197,8 +197,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ==========================================
-    // 4. REGISTRAR PACIENTE
+   // ==========================================
+    // 4. REGISTRAR PACIENTE (MEGA FORMULARIO)
     // ==========================================
     const formPaciente = document.getElementById('formNuevoPaciente');
     if (formPaciente) {
@@ -207,41 +207,57 @@ document.addEventListener('DOMContentLoaded', () => {
             if(!window.supabaseCliente) return alert("Error de conexión a la BD");
             if(!usuarioActual) return alert("Debes iniciar sesión para registrar.");
 
-            const nombre = document.getElementById('nombrePaciente').value;
-            const edad = parseInt(document.getElementById('edadPaciente').value);
-            const detalles = document.getElementById('detallesClinicos').value;
-            const valoracion = document.getElementById('valoracionInicial').value;
-
             const btnSubmit = formPaciente.querySelector('button');
-            btnSubmit.innerText = 'Guardando...';
+            btnSubmit.innerText = 'Guardando Expediente...';
             btnSubmit.disabled = true;
+
+            // Función rápida para extraer checkboxes marcados
+            const getCheckboxes = (name) => {
+                const marcados = document.querySelectorAll(`input[name="${name}"]:checked`);
+                return Array.from(marcados).map(cb => cb.value).join(', ');
+            };
+
+            // Recolectar datos del nuevo formulario
+            const datosPaciente = {
+                nombre_completo: document.getElementById('nombrePaciente').value,
+                edad: parseInt(document.getElementById('edadPaciente').value),
+                telefono_emergencia: document.getElementById('telEmergencia').value,
+                antecedentes_personales: getCheckboxes('ant_personal'),
+                antecedentes_familiares: document.getElementById('antFamiliares').value,
+                pruebas_reflejos: getCheckboxes('reflejos'),
+                sensibilidad: getCheckboxes('sensibilidad'),
+                tipo_marcha: document.getElementById('tipoMarcha').value,
+                goniometria: document.getElementById('goniometria').value,
+                nivel_dolor: parseInt(document.getElementById('nivelDolor').value),
+                mapa_dolor: document.getElementById('zonasDolor').value,
+                servicio_contratado: document.getElementById('servicioContratado').value,
+                observaciones_medicas: document.getElementById('notasTerapeuticas').value,
+                creado_por_id: usuarioActual.id // Guarda quién lo registró (Abigail, Angel...)
+            };
 
             const { data, error } = await window.supabaseCliente
                 .from('pacientes')
-                .insert([{ 
-                    nombre_completo: nombre, 
-                    edad: edad, 
-                    detalles_clinicos: detalles, 
-                    valoracion_inicial: valoracion,
-                    creado_por_id: usuarioActual.id // Guarda quién lo registró
-                }]);
+                .insert([datosPaciente]);
 
             if (error) {
                 alert('Hubo un error al registrar: ' + error.message);
             } else {
-                alert('¡Paciente registrado con éxito!');
+                alert('¡Expediente registrado con éxito!');
                 formPaciente.reset();
+                document.getElementById('valorDolor').innerText = '0'; // Resetear slider visual
                 actualizarDashboardYNotificaciones(); 
                 
                 ocultarTodo();
                 limpiarMenu();
+                const btnAgenda = document.getElementById('menu-agenda');
+                const seccionAgenda = document.getElementById('seccion-agenda');
                 if(btnAgenda) btnAgenda.classList.add('active');
                 if(seccionAgenda) {
                     seccionAgenda.style.display = 'block';
                     cargarPacientesEnAgenda(); 
                 }
             }
-            btnSubmit.innerText = 'Guardar Paciente y Agendar Cita';
+            btnSubmit.innerText = 'Guardar Expediente y Agendar';
             btnSubmit.disabled = false;
         });
     }
