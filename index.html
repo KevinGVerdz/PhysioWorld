@@ -9,6 +9,22 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Pantalla de Login -->
+    <div id="login-screen">
+        <div class="login-box">
+            <img src="./PhysioWorld.png" alt="Logo">
+            <h2>Iniciar Sesión</h2>
+            <form id="formLogin">
+                <select id="loginUsuario" required>
+                    <option value="">-- Selecciona tu usuario --</option>
+                    <!-- Se llenará con JS desde Supabase -->
+                </select>
+                <input type="password" id="loginPin" placeholder="PIN de 4 dígitos" required maxlength="4">
+                <button type="submit">Entrar</button>
+            </form>
+            <p id="loginError" style="color: red; display: none; font-size: 0.9rem; margin-top: 10px;">PIN incorrecto</p>
+        </div>
+    </div>
 
     <!-- Menú Lateral -->
     <nav class="sidebar">
