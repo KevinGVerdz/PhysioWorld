@@ -266,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // 5. AGENDA Y FULLCALENDAR
     // ==========================================
-    let calendarioFisio; // Variable global para el calendario
+    let calendarioFisio; 
 
     async function cargarPacientesEnAgenda() {
         if(!window.supabaseCliente) return;
@@ -285,53 +285,57 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Inicializar el calendario estilo Google Calendar
     function renderizarCalendario() {
         const calendarEl = document.getElementById('calendarioGoogle');
         if (!calendarEl) return;
 
-        // Si ya existe, solo forzamos que se redibuje al tamaño correcto
         if (calendarioFisio) {
             calendarioFisio.render();
             return;
         }
 
         calendarioFisio = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'timeGridWeek', // Vista semanal por horas
-            locale: 'es', // En español
-            headerToolbar: {
-                left: 'prev,next today',
-                center: 'title',
-                right: 'dayGridMonth,timeGridWeek,timeGridDay'
-            },
-            slotMinTime: '07:00:00', // Empieza a las 7 AM
-            slotMaxTime: '21:00:00', // Termina a las 9 PM
+            initialView: 'timeGridWeek', 
+            locale: 'es', 
+            headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
+            slotMinTime: '07:00:00', 
+            slotMaxTime: '21:00:00',
             allDaySlot: false,
-            // Función que busca las citas en Supabase
             events: async function(info, successCallback, failureCallback) {
                 if(!window.supabaseCliente) return failureCallback('Sin BD');
                 
+                // Agregamos paciente_id a la búsqueda
                 const { data, error } = await window.supabaseCliente
                     .from('citas')
-                    .select('id, fecha_hora, fecha_fin, evolucion, pacientes(nombre_completo)')
+                    .select('id, fecha_hora, fecha_fin, evolucion, paciente_id, estado, pacientes(nombre_completo)')
                     .gte('fecha_hora', info.startStr)
                     .lt('fecha_hora', info.endStr);
 
                 if (error) {
-                    console.error("Error cargando calendario:", error);
                     failureCallback(error);
                 } else {
                     const eventos = data.map(cita => {
                         return {
                             id: cita.id,
-                            title: (cita.pacientes ? cita.pacientes.nombre_completo : 'Sin Nombre') + (cita.evolucion ? ' - ' + cita.evolucion : ''),
+                            title: (cita.pacientes ? cita.pacientes.nombre_completo : 'Sin Nombre') + (cita.estado === 'listo' ? ' ✔' : ''),
                             start: cita.fecha_hora,
                             end: cita.fecha_fin || cita.fecha_hora, 
-                            backgroundColor: '#1f73b3',
-                            borderColor: '#1f73b3'
+                            backgroundColor: cita.estado === 'listo' ? '#28a745' : '#1f73b3', // Verde si está listo
+                            borderColor: cita.estado === 'listo' ? '#28a745' : '#1f73b3',
+                            extendedProps: { paciente_id: cita.paciente_id } // Guardamos el ID oculto
                         };
                     });
                     successCallback(eventos);
+                }
+            },
+            // AL HACER CLIC EN UN EVENTO DEL CALENDARIO:
+            eventClick: function(info) {
+                const pacienteId = info.event.extendedProps.paciente_id;
+                if(pacienteId) {
+                    document.getElementById('menu-valoraciones').click(); // Cambia de pestaña visualmente
+                    const selectVal = document.getElementById('selectPacienteValoracion');
+                    selectVal.value = pacienteId;
+                    selectVal.dispatchEvent(new Event('change')); // Dispara la carga del expediente
                 }
             }
         });
@@ -346,11 +350,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if(!usuarioActual) return alert("Debes iniciar sesión para agendar.");
 
             const pacienteId = document.getElementById('selectPacienteAgenda').value;
-            const fechaInicio = document.getElementById('fechaHoraCita').value;
-            const fechaFin = document.getElementById('fechaHoraFinCita').value;
+            const tipoCita = document.getElementById('tipoCitaAgenda').value;
             const notas = document.getElementById('notasCita').value; 
 
+            // CORRECCIÓN DE ZONA HORARIA (Convierte hora local a UTC universal)
+            const fechaInicio = new Date(document.getElementById('fechaHoraCita').value).toISOString();
+            const fechaFin = new Date(document.getElementById('fechaHoraFinCita').value).toISOString();
+
             if (!pacienteId) return alert("Seleccione un paciente.");
+            if (!tipoCita) return alert("Seleccione el tipo de cita.");
             if (new Date(fechaFin) <= new Date(fechaInicio)) return alert("La hora de fin debe ser mayor a la de inicio.");
 
             const btnSubmit = formAgendarCita.querySelector('button');
@@ -361,8 +369,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 .from('citas')
                 .insert([{ 
                     paciente_id: pacienteId, 
+                    tipo_cita: tipoCita, // ¡Ahora sí guardamos el tipo!
                     fecha_hora: fechaInicio, 
-                    fecha_fin: fechaFin, // Guardamos la hora de fin para el bloque del calendario
+                    fecha_fin: fechaFin, 
                     evolucion: notas, 
                     estado: 'pendiente',
                     creado_por_id: usuarioActual.id 
@@ -372,7 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('¡Cita agendada en el calendario!');
                 formAgendarCita.reset();
                 actualizarDashboardYNotificaciones();
-                if(calendarioFisio) calendarioFisio.refetchEvents(); // Recarga los bloques visuales al instante
+                if(calendarioFisio) calendarioFisio.refetchEvents(); 
             } else {
                 alert('Error al agendar: ' + error.message);
             }
@@ -382,7 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 6. VALORACIONES
+    // 6. VALORACIONES (CON EDICIÓN DE ESTADO Y NOTAS)
     // ==========================================
     async function cargarPacientesEnValoraciones() {
         if(!window.supabaseCliente) return;
@@ -413,8 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const { data: paciente, error: errorP } = await window.supabaseCliente
-                .from('pacientes').select('*').eq('id', pacienteId).single();
+            const { data: paciente } = await window.supabaseCliente.from('pacientes').select('*').eq('id', pacienteId).single();
 
             if (paciente && contenedorExpediente) {
                 document.getElementById('expNombre').innerText = paciente.nombre_completo;
@@ -426,8 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if(listaCitas) listaCitas.innerHTML = '<p>Cargando historial...</p>'; 
             
-            // Unimos con la tabla staff para saber el nombre del Fisio
-            const { data: citas, error: errorC } = await window.supabaseCliente
+            const { data: citas } = await window.supabaseCliente
                 .from('citas')
                 .select('*, staff(nombre)')
                 .eq('paciente_id', pacienteId)
@@ -441,11 +448,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     const fechaFormateada = fechaObj.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
                     const nombreFisio = cita.staff ? cita.staff.nombre : 'Desconocido';
                     
+                    const colorBorde = cita.estado === 'listo' ? '#28a745' : 'var(--primary-color)';
+                    const estadoTexto = cita.estado === 'listo' ? 'LISTO ✔' : 'PENDIENTE ⏳';
+                    
                     listaCitas.innerHTML += `
-                        <div style="background: var(--background); padding: 15px; margin-bottom: 15px; border-left: 4px solid var(--primary-color); border-radius: 4px;">
+                        <div style="background: var(--background); padding: 15px; margin-bottom: 15px; border-left: 4px solid ${colorBorde}; border-radius: 4px;">
                             <strong>Cita:</strong> ${fechaFormateada} <span style="float:right; color:#666; font-size: 0.85rem;">Fisio: ${nombreFisio}</span><br>
-                            <strong>Evolución / Notas:</strong> ${cita.evolucion || 'Sin notas'} <br>
-                            <small style="color: #666;"><strong>Estado:</strong> ${cita.estado.toUpperCase()}</small>
+                            <strong>Servicio:</strong> ${cita.tipo_cita || 'No especificado'}<br>
+                            
+                            <label style="display:block; margin-top:10px; font-weight:bold; font-size: 0.9rem;">Notas / Evolución:</label>
+                            <textarea id="nota-${cita.id}" rows="2" style="width:100%; padding:8px; margin-top:5px; border:1px solid #ccc; border-radius:4px;">${cita.evolucion || ''}</textarea>
+                            
+                            <div style="margin-top: 10px; display: flex; gap: 10px; align-items: center;">
+                                <strong style="color: ${colorBorde}; font-size: 0.9rem; width: 100px;">${estadoTexto}</strong>
+                                <button onclick="actualizarCitaBD('${cita.id}', 'pendiente')" style="padding: 5px 10px; cursor:pointer; font-size:0.8rem;">Marcar Pendiente</button>
+                                <button onclick="actualizarCitaBD('${cita.id}', 'listo')" style="padding: 5px 10px; cursor:pointer; background: #28a745; color:white; border:none; border-radius:3px; font-size:0.8rem;">Guardar y Marcar Listo</button>
+                            </div>
                         </div>
                     `;
                 });
@@ -455,4 +473,32 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-});
+}); // <-- FIN DEL DOMContentLoaded
+
+// ==========================================
+// FUNCIÓN GLOBAL PARA ACTUALIZAR CITAS DESDE VALORACIONES
+// ==========================================
+window.actualizarCitaBD = async function(citaId, nuevoEstado) {
+    if(!window.supabaseCliente) return alert("Error de conexión");
+    
+    // Extraer la nota modificada por el usuario
+    const nuevaNota = document.getElementById(`nota-${citaId}`).value;
+    
+    const { error } = await window.supabaseCliente
+        .from('citas')
+        .update({ estado: nuevoEstado, evolucion: nuevaNota })
+        .eq('id', citaId);
+        
+    if (error) {
+        alert("Error al actualizar: " + error.message);
+    } else {
+        alert("¡Expediente actualizado!");
+        // Forzamos que se vuelva a cargar la información de la pestaña
+        document.getElementById('selectPacienteValoracion').dispatchEvent(new Event('change'));
+        
+        // Refrescamos el calendario visualmente para que se pinte de verde si es necesario
+        if(typeof calendarioFisio !== 'undefined' && calendarioFisio) {
+            calendarioFisio.refetchEvents();
+        }
+    }
+};
