@@ -8,56 +8,30 @@
     <link rel="stylesheet" href="style.css">
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
     <style>
-        /* Estilos de la Pantalla de Login integrados directamente */
         #login-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: var(--primary-color, #1f73b3);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--primary-color, #1f73b3); display: flex;
+            justify-content: center; align-items: center; z-index: 9999;
         }
         .login-box {
-            background: white;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            text-align: center;
-            width: 350px;
+            background: white; padding: 40px; border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-align: center; width: 350px;
         }
-        .login-box img {
-            max-width: 150px;
-            margin-bottom: 20px;
-        }
+        .login-box img { max-width: 150px; margin-bottom: 20px; }
         .login-box select, .login-box input {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 1rem;
+            width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc;
+            border-radius: 5px; font-size: 1rem;
         }
         .login-box button {
-            width: 100%;
-            padding: 10px;
-            background-color: var(--primary-color, #1f73b3);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            margin-top: 10px;
-            font-size: 1.1rem;
+            width: 100%; padding: 10px; background-color: var(--primary-color, #1f73b3);
+            color: white; border: none; border-radius: 5px; cursor: pointer;
+            font-weight: bold; margin-top: 10px; font-size: 1.1rem;
         }
     </style>
 </head>
 <body>
 
-    <!-- Pantalla de Login (BLOQUEA EL ACCESO HASTA ENTRAR) -->
+    <!-- Pantalla de Login -->
     <div id="login-screen">
         <div class="login-box">
             <img src="./PhysioWorld.png" alt="Logo Physio World">
@@ -65,7 +39,6 @@
             <form id="formLogin">
                 <select id="loginUsuario" required>
                     <option value="">-- Selecciona tu usuario --</option>
-                    <!-- Se llenará con JS desde Supabase -->
                 </select>
                 <input type="password" id="loginPin" placeholder="PIN de 4 dígitos" required maxlength="4">
                 <button type="submit">Entrar</button>
@@ -74,7 +47,6 @@
         </div>
     </div>
 
-    <!-- Menú Lateral -->
     <nav class="sidebar">
         <div class="logo-container">
             <img src="./PhysioWorld.png" alt="Logo Physio World" style="max-width: 90%; height: auto; background: white; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
@@ -92,44 +64,24 @@
         </div>
     </nav>
 
-    <!-- Contenido Principal -->
     <main class="main-content">
-        <!-- Barra Superior -->
         <header class="top-bar">
-            <div class="search-bar">
-                <i class="fas fa-search"></i>
-                <input type="text" placeholder="Buscar paciente...">
-            </div>
-            <div class="header-actions">
-                <div class="notification-bell">
-                    <i class="fas fa-bell"></i>
-                    <span class="badge">0</span>
-                </div>
-            </div>
+            <div class="search-bar"><i class="fas fa-search"></i><input type="text" placeholder="Buscar paciente..."></div>
+            <div class="header-actions"><div class="notification-bell"><i class="fas fa-bell"></i><span class="badge">0</span></div></div>
         </header>
 
-        <!-- Área de trabajo (Dashboard) -->
         <section id="seccion-dashboard" class="dashboard">
             <h1>Bienvenido a Physio World</h1>
             <p>Resumen de citas y tareas de hoy.</p>
             <div class="cards-container">
-                <div class="card">
-                    <h3>Citas Hoy</h3>
-                    <p class="big-number" id="count-citas-hoy">0</p>
-                </div>
-                <div class="card">
-                    <h3>Pacientes Nuevos (Hoy)</h3>
-                    <p class="big-number" id="count-pacientes-nuevos">0</p>
-                </div>
+                <div class="card"><h3>Citas Hoy</h3><p class="big-number" id="count-citas-hoy">0</p></div>
+                <div class="card"><h3>Pacientes Nuevos (Hoy)</h3><p class="big-number" id="count-pacientes-nuevos">0</p></div>
             </div>
         </section>
 
-     <!-- Formulario de Registro de Paciente (NUEVO EXPEDIENTE CLÍNICO) -->
         <section id="seccion-registro" class="patient-registration" style="padding: 30px; display: none;">
             <h2>Expediente Clínico y Valoración</h2>
             <form id="formNuevoPaciente" style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-top: 20px;">
-                
-                <!-- 1. Datos Generales -->
                 <h3 style="border-bottom: 2px solid var(--secondary-color); padding-bottom: 5px; color: var(--primary-color);">1. Datos Generales</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 15px;">
                     <div><label>Nombre Completo:</label><input type="text" id="nombrePaciente" required style="width: 100%; padding: 8px;"></div>
@@ -137,7 +89,6 @@
                     <div><label>Teléfono de Emergencia:</label><input type="text" id="telEmergencia" required style="width: 100%; padding: 8px;"></div>
                 </div>
 
-                <!-- 2. Antecedentes -->
                 <h3 style="border-bottom: 2px solid var(--secondary-color); padding-bottom: 5px; color: var(--primary-color); margin-top: 25px;">2. Antecedentes</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
                     <div>
@@ -148,13 +99,9 @@
                         <input type="checkbox" name="ant_personal" value="Actividad Física"> Actividad Física
                         <input type="checkbox" name="ant_personal" value="Negado"> Negado
                     </div>
-                    <div>
-                        <label><strong>Antecedentes Familiares:</strong></label>
-                        <textarea id="antFamiliares" rows="2" style="width: 100%; padding: 8px;"></textarea>
-                    </div>
+                    <div><label><strong>Antecedentes Familiares:</strong></label><textarea id="antFamiliares" rows="2" style="width: 100%; padding: 8px;"></textarea></div>
                 </div>
 
-                <!-- 3. Pruebas y Exploración -->
                 <h3 style="border-bottom: 2px solid var(--secondary-color); padding-bottom: 5px; color: var(--primary-color); margin-top: 25px;">3. Pruebas y Exploración</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 15px;">
                     <div>
@@ -192,7 +139,6 @@
                     </div>
                 </div>
 
-                <!-- 4. Escala de Dolor -->
                 <h3 style="border-bottom: 2px solid var(--secondary-color); padding-bottom: 5px; color: var(--primary-color); margin-top: 25px;">4. Escala de Dolor</h3>
                 <div style="margin-top: 15px;">
                     <label><strong>Nivel de Dolor (0 al 10):</strong> <span id="valorDolor">0</span> - Sin dolor</label>
@@ -200,23 +146,21 @@
                     <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #666;">
                         <span>0 (Leve)</span><span>5 (Moderado)</span><span>10 (Insoportable)</span>
                     </div>
-                    
                     <label style="margin-top: 20px; display: block;"><strong>Zonas de dolor en el cuerpo:</strong></label>
-                    <textarea id="zonasDolor" rows="3" placeholder="Describe detalladamente las zonas. Ej: Hombro derecho, zona lumbar izquierda irradiando a la pierna..." style="width: 100%; padding: 8px; margin-top: 5px;"></textarea>
+                    <textarea id="zonasDolor" rows="3" placeholder="Describe detalladamente las zonas." style="width: 100%; padding: 8px; margin-top: 5px;"></textarea>
                 </div>
 
-                <!-- 5. Servicios y Notas Finales -->
                 <h3 style="border-bottom: 2px solid var(--secondary-color); padding-bottom: 5px; color: var(--primary-color); margin-top: 25px;">5. Servicios y Notas</h3>
                 <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 15px; margin-top: 15px;">
                     <div>
                         <label><strong>Servicio a realizar:</strong></label>
                         <select id="servicioContratado" required style="width: 100%; padding: 8px; margin-top: 5px; border: 2px solid var(--primary-color);">
                             <option value="">-- Seleccionar --</option>
-                            <option value="Valoración - $100">Valoración $100</option>
-                            <option value="Sesión - $450">Sesión: $450</option>
-                            <option value="Paquete de 5 sesiones - $2000">Paquete 5 sesiones $2000 (Normal $2250)</option>
-                            <option value="Media Descarga - $400">Media Descarga $400</option>
-                            <option value="Descarga Completa - $700">Descarga Completa $700</option>
+                            <option value="Valoración">Valoración $100</option>
+                            <option value="Sesión">Sesión: $450</option>
+                            <option value="Paquete">Paquete 5 sesiones $2000</option>
+                            <option value="Media Descarga">Media Descarga $400</option>
+                            <option value="Descarga Completa">Descarga Completa $700</option>
                         </select>
                     </div>
                     <div>
@@ -224,19 +168,15 @@
                         <textarea id="notasTerapeuticas" rows="3" style="width: 100%; padding: 8px; margin-top: 5px;"></textarea>
                     </div>
                 </div>
-
                 <button type="submit" style="margin-top: 25px; width: 100%; font-size: 1.1rem; background: var(--primary-color); color: white; padding: 15px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
                     Guardar Expediente y Agendar
                 </button>
             </form>
         </section>
 
-    <!-- Módulo de Agenda y Calendario -->
         <section id="seccion-agenda" class="agenda-section" style="padding: 30px; display: none;">
             <h2>Agenda de Citas</h2>
             <div style="display: grid; grid-template-columns: 1fr 2.5fr; gap: 20px; margin-top: 20px;">
-                
-                <!-- Formulario para agendar -->
                 <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); height: fit-content;">
                     <h3>Nueva Cita</h3>
                     <form id="formAgendarCita" style="margin-top: 15px;">
@@ -245,27 +185,32 @@
                             <option value="">-- Seleccione un paciente --</option>
                         </select>
 
+                        <!-- AQUI ESTÁ EL TIPO DE CITA QUE FALTABA -->
+                        <label>Tipo de Cita / Servicio:</label>
+                        <select id="tipoCitaAgenda" required style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px;">
+                            <option value="">-- Seleccionar --</option>
+                            <option value="Valoración">Valoración</option>
+                            <option value="Sesión">Sesión normal</option>
+                            <option value="Paquete">Paquete de 5 sesiones</option>
+                            <option value="Descarga">Descarga muscular</option>
+                        </select>
+
                         <label>Inicio de la cita:</label>
                         <input type="datetime-local" id="fechaHoraCita" required style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px;">
-
                         <label>Fin de la cita:</label>
                         <input type="datetime-local" id="fechaHoraFinCita" required style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px;">
-
                         <label>Motivo / Notas de la cita:</label>
                         <textarea id="notasCita" rows="2" style="width: 100%; padding: 8px; margin-top: 5px;"></textarea>
 
                         <button type="submit" style="margin-top: 15px; width: 100%; background: var(--secondary-color); color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Agendar en Calendario</button>
                     </form>
                 </div>
-
-                <!-- Calendario FullCalendar -->
                 <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
                     <div id="calendarioGoogle"></div>
                 </div>
             </div>
         </section>
 
-        <!-- Módulo de Valoraciones / Historial Clínico -->
         <section id="seccion-valoraciones" class="valoraciones-section" style="padding: 30px; display: none;">
             <h2>Historial Clínico y Valoraciones</h2>
             <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-top: 20px;">
@@ -284,13 +229,11 @@
             </div>
         </section>
 
-        <!-- Footer -->
         <footer>
             <p>Desarrollado y diseñado por <strong>Verdz | Ing. Kevin Garcia Verduzco © 2026</strong></p>
         </footer>
     </main>
 
-    <!-- Cargar Supabase y app.js -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="app.js"></script>
 </body>
