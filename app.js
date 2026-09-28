@@ -213,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ==========================================
+   // ==========================================
     // 5. AGENDA Y FULLCALENDAR
     // ==========================================
     let calendarioFisio; 
@@ -271,10 +271,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     successCallback(eventos);
                 }
             },
-            eventClick: function(info) {
+            eventClick: async function(info) {
                 const pacienteId = info.event.extendedProps.paciente_id;
                 if(pacienteId) {
+                    // 1. Damos clic en la pestaña Valoraciones para abrirla
                     document.getElementById('menu-valoraciones').click(); 
+                    
+                    // 2. ESPERAMOS obligatoriamente a que Supabase llene la lista desplegable
+                    await cargarPacientesEnValoraciones(); 
+                    
+                    // 3. Una vez llena, ahora sí seleccionamos al paciente y cargamos su historial
                     const selectVal = document.getElementById('selectPacienteValoracion');
                     selectVal.value = pacienteId;
                     selectVal.dispatchEvent(new Event('change')); 
