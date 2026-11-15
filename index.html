@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Physio World - Suite Clínica Pro</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="agenda.css">
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
@@ -356,6 +354,7 @@
                     </aside>
 
                     <div class="gcal-main">
+                        <div class="gcal-loading" id="gcalLoading" aria-hidden="true"></div>
                         <div id="calendarioGoogle"></div>
 
                         <!-- Resultados de búsqueda -->
@@ -475,12 +474,13 @@
             <div class="gcal-row">
                 <i class="far fa-clock"></i>
                 <div class="gcal-time-editor">
-                    <input type="date" id="qFecha" aria-label="Fecha">
+                    <label class="gcal-date-field"><span class="gcal-date-txt"></span><input type="date" id="qFecha" aria-label="Fecha"></label>
                     <select id="qInicio" aria-label="Hora de inicio"></select>
                     <span class="gcal-dash">–</span>
                     <select id="qFin" aria-label="Hora de término"></select>
                 </div>
             </div>
+            <div class="gcal-conflicto" id="qConflicto" hidden></div>
             <div class="gcal-row">
                 <i class="fas fa-circle gcal-color-dot" id="qColor"></i>
                 <select id="qServicio" aria-label="Servicio"></select>
@@ -531,11 +531,12 @@
             </div>
             <div class="gcal-modal-body">
                 <div class="gcal-time-editor big">
-                    <input type="date" id="mFecha" aria-label="Fecha">
+                    <label class="gcal-date-field"><span class="gcal-date-txt"></span><input type="date" id="mFecha" aria-label="Fecha"></label>
                     <select id="mInicio" aria-label="Hora de inicio"></select>
                     <span class="gcal-dash">a</span>
                     <select id="mFin" aria-label="Hora de término"></select>
                 </div>
+                <div class="gcal-conflicto" id="mConflicto" hidden></div>
                 <p class="gcal-hint"><i class="fas fa-info-circle"></i> La hora de término se ajusta sola: por defecto 1 hora después del inicio.</p>
 
                 <div class="gcal-tabs"><span class="active">Detalles de la cita</span></div>
@@ -589,6 +590,19 @@
                 <div class="gcal-cfg-row">
                     <label for="cfgSonido">Reproducir sonido con cada aviso</label>
                     <input type="checkbox" id="cfgSonido" class="gcal-switch">
+                </div>
+
+                <h4 class="gcal-cfg-title">Horario de atención</h4>
+                <div class="gcal-cfg-row">
+                    <label>Abre / cierra</label>
+                    <div class="gcal-cfg-actions">
+                        <select id="cfgApertura" aria-label="Hora de apertura"></select>
+                        <select id="cfgCierre" aria-label="Hora de cierre"></select>
+                    </div>
+                </div>
+                <div class="gcal-cfg-row">
+                    <label>Días laborales</label>
+                    <div class="gcal-dias" id="cfgDias"></div>
                 </div>
 
                 <h4 class="gcal-cfg-title">Vista</h4>

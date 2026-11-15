@@ -47,7 +47,8 @@
         { id: 'timeGridFourDay', nombre: '4 días', tecla: 'X' }
     ];
 
-    const COLUMNAS_CITA = 'id, fecha_hora, fecha_fin, tipo_cita, evolucion, paciente_id, estado, creado_por_id, pacientes(nombre_completo, telefono_emergencia)';
+    const COLUMNAS_CITA = 'id, fecha_hora, fecha_fin, tipo_cita, evolucion, paciente_id, estado, creado_por_id, pacientes(nombre_completo, telefono_emergencia), staff(nombre)';
+    const PALETA_AVATAR = ['#0284c7', '#7c3aed', '#0d9488', '#db2777', '#ea580c', '#4f46e5', '#059669', '#b45309'];
 
     const LS_PREFS = 'physio_agenda_prefs';
     const LS_RECORDATORIOS = 'physio_recordatorios';
@@ -69,7 +70,10 @@
         mostrarCompletadas: true,
         recordatorio: 10,
         sonido: true,
-        sidebar: true
+        sidebar: true,
+        apertura: 8 * 60,          // minutos desde medianoche
+        cierre: 20 * 60,
+        diasLaborales: [1, 2, 3, 4, 5, 6]
     }, leerLS(LS_PREFS, {}));
     const guardarPrefs = () => guardarLS(LS_PREFS, prefs);
 
@@ -114,6 +118,24 @@
         if (min < 60) return `${min} min`;
         const h = Math.floor(min / 60), m = min % 60;
         return m ? `${h} h ${m} min` : `${h} h`;
+    }
+
+    const normalizar = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    function iniciales(nombre) {
+        const partes = String(nombre || '?').trim().split(/\s+/).filter(Boolean);
+        return ((partes[0] || '?')[0] + (partes[1] ? partes[1][0] : '')).toUpperCase();
+    }
+    function colorAvatar(nombre) {
+        let h = 0;
+        for (const c of String(nombre || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+        return PALETA_AVATAR[h % PALETA_AVATAR.length];
+    }
+    const aHHMM = (min) => `${pad(Math.floor(min / 60))}:${pad(min % 60)}`;
+    const horarioFC = () => ({ daysOfWeek: prefs.diasLaborales, startTime: aHHMM(prefs.apertura), endTime: aHHMM(prefs.cierre) });
+    function fueraDeHorario(inicio, fin) {
+        if (!prefs.diasLaborales.includes(inicio.getDay())) return true;
+        const base = medianoche(inicio);
+        return (inicio - base) / 60000 < prefs.apertura || (fin - base) / 60000 > prefs.cierre;
     }
 
     function servicioDe(valor) { return SERVICIOS.find((s) => s.valor === valor) || null; }
@@ -168,6 +190,14 @@
     // ------------------------------------------------------------------
     function crearEditorHorario(fechaEl, inicioEl, finEl, alCambiar) {
         const st = { inicio: null, fin: null };
+        const campoFecha = fechaEl.closest('.gcal-date-field');
+        const txtFecha = campoFecha ? campoFecha.querySelector('.gcal-date-txt') : null;
+        if (campoFecha) {
+            campoFecha.addEventListener('click', (e) => {
+                e.preventDefault();
+                try { fechaEl.showPicker(); } catch (err) { fechaEl.focus(); }
+            });
+        }
 
         const etiqueta = (m) => fmtHora(new Date(2000, 0, 1, 0, m));
         function llenar() {
@@ -188,6 +218,7 @@
             finEl.value = String(finMin);
 
             fechaEl.value = aFechaInput(st.inicio);
+            if (txtFecha) txtFecha.textContent = fmtFecha(st.inicio);
         }
 
         function fijar(inicio, fin) {
@@ -220,6 +251,76 @@
     }
 
     // ------------------------------------------------------------------
+    // BUSCADOR DE PACIENTES (combobox con avatar, nombre y teléfono)
+    // ------------------------------------------------------------------
+    const combos = {};
+    function crearComboPacientes(sel) {
+        sel.classList.add('gcal-oculto');
+        sel.tabIndex = -1;
+        const wrap = document.createElement('div');
+        wrap.className = 'gcal-combo';
+        wrap.innerHTML = `
+            <input type="text" class="gcal-combo-input" placeholder="Agregar paciente" autocomplete="off"
+                   role="combobox" aria-expanded="false" aria-autocomplete="list" aria-label="Paciente">
+            <div class="gcal-combo-list" role="listbox" hidden></div>`;
+        sel.insertAdjacentElement('afterend', wrap);
+        const input = wrap.querySelector('input');
+        const lista = wrap.querySelector('.gcal-combo-list');
+        let items = [], activo = 0, filtro = '';
+
+        const nombreSel = () => { const p = pacientes().find((x) => String(x.id) === sel.value); return p ? p.nombre_completo : ''; };
+        function pintar() {
+            const f = normalizar(filtro), digitos = filtro.replace(/\D/g, '');
+            items = pacientes().filter((p) => !f || normalizar(p.nombre_completo).includes(f)
+                || (digitos.length >= 3 && String(p.telefono_emergencia || '').replace(/\D/g, '').includes(digitos))).slice(0, 60);
+            if (activo >= items.length) activo = Math.max(0, items.length - 1);
+            lista.innerHTML = items.map((p, i) => `
+                <div class="gcal-combo-item${i === activo ? ' activo' : ''}${String(p.id) === sel.value ? ' elegido' : ''}" role="option" data-i="${i}">
+                    <span class="gcal-avatar" style="background:${colorAvatar(p.nombre_completo)}">${esc(iniciales(p.nombre_completo))}</span>
+                    <span class="gcal-combo-txt"><strong>${esc(p.nombre_completo)}</strong>
+                        <small>${esc(p.telefono_emergencia || 'Sin teléfono')}${p.servicio_contratado ? ' · ' + esc(infoServicio(p.servicio_contratado).nombre) : ''}</small></span>
+                </div>`).join('')
+                + (items.length ? '' : '<div class="gcal-combo-vacio">No se encontraron pacientes</div>')
+                + `<div class="gcal-combo-item nuevo" data-nuevo="1">
+                    <span class="gcal-avatar plus"><i class="fas fa-user-plus"></i></span>
+                    <span class="gcal-combo-txt"><strong>Registrar nuevo paciente</strong></span></div>`;
+            const act = lista.querySelector('.activo');
+            if (act) act.scrollIntoView({ block: 'nearest' });
+        }
+        function abrir() { filtro = ''; activo = Math.max(0, pacientes().findIndex((p) => String(p.id) === sel.value)); pintar(); lista.hidden = false; input.setAttribute('aria-expanded', 'true'); }
+        function cerrar() { lista.hidden = true; input.setAttribute('aria-expanded', 'false'); }
+        function sync() { input.value = nombreSel(); }
+        function elegir(p) {
+            sel.value = String(p.id);
+            input.value = p.nombre_completo;
+            cerrar();
+            sel.dispatchEvent(new Event('change'));
+        }
+
+        input.addEventListener('focus', () => { input.select(); if (!sel.value) abrir(); });
+        input.addEventListener('click', () => { if (lista.hidden) abrir(); });
+        input.addEventListener('input', () => { filtro = input.value; activo = 0; pintar(); lista.hidden = false; });
+        input.addEventListener('blur', () => setTimeout(() => { cerrar(); sync(); }, 150));
+        input.addEventListener('keydown', (e) => {
+            if (lista.hidden) { if (e.key === 'ArrowDown') { e.preventDefault(); abrir(); } return; }
+            if (e.key === 'ArrowDown') { e.preventDefault(); activo = Math.min(activo + 1, items.length - 1); pintar(); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); activo = Math.max(activo - 1, 0); pintar(); }
+            else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); if (items[activo]) elegir(items[activo]); }
+            else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cerrar(); sync(); }
+        });
+        lista.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            const it = e.target.closest('.gcal-combo-item');
+            if (!it) return;
+            if (it.dataset.nuevo) { cerrar(); cerrarPopovers(); cerrarModales(); $('menu-pacientes').click(); return; }
+            elegir(items[Number(it.dataset.i)]);
+        });
+
+        combos[sel.id] = { sync, foco: () => input.focus() };
+        return combos[sel.id];
+    }
+
+    // ------------------------------------------------------------------
     // SELECTORES COMPARTIDOS
     // ------------------------------------------------------------------
     function opcionesPacientes(seleccionado) {
@@ -232,6 +333,7 @@
         const { html } = opcionesPacientes(valor);
         sel.innerHTML = html;
         sel.value = valor ? String(valor) : '';
+        if (combos[sel.id]) combos[sel.id].sync();
     }
     function llenarServicios(sel, valor) {
         let html = '<option value="">Seleccionar servicio</option>';
@@ -246,6 +348,35 @@
     }
     function pintarColor(iconEl, servicio) {
         iconEl.style.color = servicio ? infoServicio(servicio).color : '#dadce0';
+    }
+
+    // ------------------------------------------------------------------
+    // AVISO DE CITAS EMPALMADAS / FUERA DE HORARIO
+    // ------------------------------------------------------------------
+    const temporizadoresEmpalme = {};
+    function revisarEmpalme(pref) {
+        clearTimeout(temporizadoresEmpalme[pref]);
+        temporizadoresEmpalme[pref] = setTimeout(async () => {
+            const el = $(pref + 'Conflicto');
+            const editor = pref === 'q' ? editorRapido : editorModal;
+            if (!el || !editor || !db()) return;
+            const { inicio, fin } = editor.obtener();
+            const excluir = pref === 'm' && citaModal ? String(citaModal.id) : null;
+            const { data } = await db().from('citas').select(COLUMNAS_CITA)
+                .gte('fecha_hora', new Date(inicio.getTime() - 24 * 3600000).toISOString())
+                .lt('fecha_hora', fin.toISOString());
+            const actual = editor.obtener();
+            if (actual.inicio.getTime() !== inicio.getTime() || actual.fin.getTime() !== fin.getTime()) return;
+            const choques = (data || []).filter((c) => String(c.id) !== excluir && finDe(c) > inicio && new Date(c.fecha_hora) < fin);
+            const avisos = [];
+            if (choques.length) {
+                const lista = choques.slice(0, 2).map((c) => `<strong>${esc(nombrePaciente(c))}</strong> (${fmtRangoCorto(new Date(c.fecha_hora), finDe(c))})`).join(' y ');
+                avisos.push(`<i class="fas fa-exclamation-triangle"></i><span>Se empalma con ${lista}${choques.length > 2 ? ` y ${choques.length - 2} más` : ''}</span>`);
+            }
+            if (fueraDeHorario(inicio, fin)) avisos.push('<i class="far fa-clock"></i><span>Fuera del horario de atención</span>');
+            el.innerHTML = avisos.map((a) => `<div>${a}</div>`).join('');
+            el.hidden = !avisos.length;
+        }, 200);
     }
 
     // ------------------------------------------------------------------
@@ -328,7 +459,8 @@
             slotDuration: '00:30:00',
             snapDuration: '00:15:00',
             slotLabelInterval: '01:00',
-            scrollTime: '07:00:00',
+            scrollTime: aHHMM(Math.max(0, prefs.apertura - 30)),
+            businessHours: horarioFC(),
             scrollTimeReset: false,
             defaultTimedEventDuration: '01:00',
             forceEventDuration: true,
@@ -414,6 +546,11 @@
                 renderMenuVistas();
             },
 
+            loading(cargando) {
+                const barra = $('gcalLoading');
+                if (barra) barra.classList.toggle('activo', cargando);
+            },
+
             eventsSet() {
                 if (pendienteAbrir) intentarAbrirPendiente();
             }
@@ -429,7 +566,7 @@
     async function moverEvento(info) {
         const ev = info.event;
         if (ev.id === TEMP_ID) {
-            if (editorRapido) editorRapido.fijar(ev.start, ev.end);
+            if (editorRapido) { editorRapido.fijar(ev.start, ev.end); revisarEmpalme('q'); }
             return;
         }
         if (!db() || !usuario()) { info.revert(); return toast('Debes iniciar sesión', 'error'); }
@@ -449,6 +586,8 @@
     }
 
     function despuesDeCambio() {
+        Object.keys(diasConCitas).forEach((k) => delete diasConCitas[k]);
+        renderMini();
         if (calendar) calendar.refetchEvents();
         if (app().actualizarDashboard) app().actualizarDashboard();
         Recordatorios.recargar();
@@ -457,6 +596,17 @@
     // ------------------------------------------------------------------
     // MINI CALENDARIO Y LISTA DE CALENDARIOS
     // ------------------------------------------------------------------
+    const diasConCitas = {};
+    async function cargarDiasConCitas(desde, hasta, clave) {
+        if (diasConCitas[clave] || !db() || !usuario()) return;
+        diasConCitas[clave] = 'cargando';
+        const { data, error } = await db().from('citas').select('fecha_hora')
+            .gte('fecha_hora', desde.toISOString()).lt('fecha_hora', hasta.toISOString());
+        if (error) { delete diasConCitas[clave]; return; }
+        diasConCitas[clave] = new Set((data || []).map((c) => aFechaInput(new Date(c.fecha_hora))));
+        renderMini();
+    }
+
     function renderMini() {
         const cont = $('gcalMini');
         if (!cont) return;
@@ -470,6 +620,10 @@
             rangoIni = calendar.view.currentStart; rangoFin = calendar.view.currentEnd;
         }
         const seleccionado = calendar ? calendar.getDate() : hoy;
+        const finMini = new Date(inicio); finMini.setDate(inicio.getDate() + 42);
+        const claveMini = aFechaInput(inicio);
+        const conCitas = diasConCitas[claveMini] instanceof Set ? diasConCitas[claveMini] : null;
+        if (!diasConCitas[claveMini]) cargarDiasConCitas(inicio, finMini, claveMini);
 
         const letras = [];
         for (let i = 0; i < 7; i++) {
@@ -482,6 +636,7 @@
             const d = new Date(inicio); d.setDate(inicio.getDate() + i);
             const cls = ['gcal-mini-day'];
             if (d.getMonth() !== mesMini.getMonth()) cls.push('otro');
+            if (conCitas && conCitas.has(aFechaInput(d))) cls.push('con-citas');
             if (mismoDia(d, hoy)) cls.push('hoy');
             else if (rangoIni && d >= rangoIni && d < rangoFin) cls.push('rango');
             else if (!rangoIni && mismoDia(d, seleccionado)) cls.push('sel');
@@ -622,6 +777,8 @@
         llenarRecordatorios($('qRecordatorio'), prefs.recordatorio);
         $('qNotas').value = '';
         editorRapido.fijar(inicio, fin || sumarMin(inicio, DURACION_DEFAULT_MIN));
+        $('qConflicto').hidden = true;
+        revisarEmpalme('q');
 
         if (calendar && agendaVisible()) {
             const r = editorRapido.obtener();
@@ -635,7 +792,7 @@
         requestAnimationFrame(() => {
             const el = document.querySelector('.fc .gcal-ev-temp');
             posicionar($('gcalQuick'), el ? el.getBoundingClientRect() : ancla);
-            $('qPaciente').focus();
+            combos.qPaciente.foco();
         });
     }
 
@@ -751,7 +908,14 @@
             <div class="gcal-row"><i class="fas fa-tag"></i><div>${esc(srv.nombre)}${srv.precio ? ` <span class="gcal-muted">· ${srv.precio}</span>` : ''}</div></div>
             <div class="gcal-row"><i class="far fa-bell"></i><div>${esc(textoRecordatorio(rec))}</div></div>
             <div class="gcal-row"><i class="far fa-check-circle"></i><div>${listo ? '<span class="gcal-pill ok">Completada</span>' : '<span class="gcal-pill pend">Pendiente</span>'}</div></div>
-            ${tel ? `<div class="gcal-row"><i class="fas fa-phone-alt"></i><div>${esc(tel)}</div></div>` : ''}
+            <div class="gcal-row gcal-persona">
+                <span class="gcal-avatar" style="background:${colorAvatar(nombrePaciente(cita))}">${esc(iniciales(nombrePaciente(cita)))}</span>
+                <div>
+                    <span>Paciente</span>
+                    ${tel ? `<a href="tel:${esc(String(tel).replace(/[^\d+]/g, ''))}"><i class="fas fa-phone-alt"></i> ${esc(tel)}</a>` : '<span class="gcal-muted">Sin teléfono registrado</span>'}
+                </div>
+            </div>
+            ${cita.staff && cita.staff.nombre ? `<div class="gcal-row"><i class="fas fa-user-md"></i><div><span class="gcal-muted">Agendada por</span> ${esc(cita.staff.nombre)}</div></div>` : ''}
             ${cita.evolucion ? `<div class="gcal-row"><i class="fas fa-align-left"></i><div class="gcal-notas">${esc(cita.evolucion)}</div></div>` : ''}
             <div class="gcal-det-actions">
                 <button type="button" class="gcal-outline-btn" data-acc="estado"><i class="fas ${listo ? 'fa-undo' : 'fa-check'}"></i> ${listo ? 'Marcar como pendiente' : 'Marcar como completada'}</button>
@@ -818,8 +982,10 @@
         $('mEstado').value = d.estado === 'listo' ? 'listo' : 'pendiente';
         $('mNotas').value = d.notas || '';
         editorModal.fijar(d.inicio, d.fin);
+        $('mConflicto').hidden = true;
+        revisarEmpalme('m');
         abrirModalEl('gcalModal');
-        setTimeout(() => $('mPaciente').focus(), 50);
+        if (!d.pacienteId) setTimeout(() => combos.mPaciente.foco(), 50);
     }
 
     // ------------------------------------------------------------------
@@ -1203,7 +1369,9 @@
         $('gcalNotifCta').addEventListener('click', pedirPermiso);
 
         // Creación rápida
-        editorRapido = crearEditorHorario($('qFecha'), $('qInicio'), $('qFin'), actualizarTemporal);
+        crearComboPacientes($('qPaciente'));
+        crearComboPacientes($('mPaciente'));
+        editorRapido = crearEditorHorario($('qFecha'), $('qInicio'), $('qFin'), () => { actualizarTemporal(); revisarEmpalme('q'); });
         $('qPaciente').addEventListener('change', () => {
             const p = pacientes().find((x) => String(x.id) === $('qPaciente').value);
             if (p && p.servicio_contratado && !$('qServicio').value) llenarServicios($('qServicio'), p.servicio_contratado);
@@ -1233,7 +1401,7 @@
         });
 
         // Modal completo
-        editorModal = crearEditorHorario($('mFecha'), $('mInicio'), $('mFin'));
+        editorModal = crearEditorHorario($('mFecha'), $('mInicio'), $('mFin'), () => revisarEmpalme('m'));
         $('mServicio').addEventListener('change', () => pintarColor($('mColor'), $('mServicio').value));
         $('mPaciente').addEventListener('change', () => {
             const p = pacientes().find((x) => String(x.id) === $('mPaciente').value);
@@ -1262,6 +1430,43 @@
         $('cfgSonido').addEventListener('change', (e) => { prefs.sonido = e.target.checked; guardarPrefs(); if (prefs.sonido) sonar(); });
         $('cfgPrimerDia').addEventListener('change', (e) => { prefs.primerDia = Number(e.target.value); guardarPrefs(); if (calendar) calendar.setOption('firstDay', prefs.primerDia); renderMini(); });
         $('cfgFines').addEventListener('change', (e) => { prefs.finesSemana = e.target.checked; guardarPrefs(); if (calendar) calendar.setOption('weekends', prefs.finesSemana); renderMenuVistas(); });
+        const opcionesHora = (sel, valor) => {
+            let html = '';
+            for (let m = 5 * 60; m <= 23 * 60; m += 30) html += `<option value="${m}">${fmtHora(new Date(2000, 0, 1, 0, m))}</option>`;
+            sel.innerHTML = html; sel.value = String(valor);
+        };
+        opcionesHora($('cfgApertura'), prefs.apertura);
+        opcionesHora($('cfgCierre'), prefs.cierre);
+        const aplicarHorario = () => {
+            guardarPrefs();
+            if (calendar) calendar.setOption('businessHours', horarioFC());
+        };
+        $('cfgApertura').addEventListener('change', (e) => {
+            prefs.apertura = Number(e.target.value);
+            if (prefs.cierre <= prefs.apertura) { prefs.cierre = Math.min(23 * 60, prefs.apertura + 60); $('cfgCierre').value = String(prefs.cierre); }
+            aplicarHorario();
+        });
+        $('cfgCierre').addEventListener('change', (e) => {
+            prefs.cierre = Number(e.target.value);
+            if (prefs.cierre <= prefs.apertura) { prefs.apertura = Math.max(0, prefs.cierre - 60); $('cfgApertura').value = String(prefs.apertura); }
+            aplicarHorario();
+        });
+        const pintarDias = () => {
+            $('cfgDias').innerHTML = [1, 2, 3, 4, 5, 6, 0].map((d) => {
+                const letra = new Date(2023, 0, 1 + d).toLocaleDateString('es-MX', { weekday: 'narrow' }).toUpperCase();
+                const nombre = new Date(2023, 0, 1 + d).toLocaleDateString('es-MX', { weekday: 'long' });
+                return `<button type="button" class="gcal-dia${prefs.diasLaborales.includes(d) ? ' on' : ''}" data-dia="${d}" title="${nombre}" aria-pressed="${prefs.diasLaborales.includes(d)}">${letra}</button>`;
+            }).join('');
+        };
+        pintarDias();
+        $('cfgDias').addEventListener('click', (e) => {
+            const b = e.target.closest('[data-dia]');
+            if (!b) return;
+            const d = Number(b.dataset.dia);
+            prefs.diasLaborales = prefs.diasLaborales.includes(d) ? prefs.diasLaborales.filter((x) => x !== d) : prefs.diasLaborales.concat([d]);
+            pintarDias();
+            aplicarHorario();
+        });
         $('cfgActivarNotif').addEventListener('click', pedirPermiso);
         $('cfgProbar').addEventListener('click', async () => {
             if (permisoNotif() === 'default') await pedirPermiso();

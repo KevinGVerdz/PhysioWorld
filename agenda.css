@@ -2,10 +2,12 @@
    PHYSIO WORLD - AGENDA ESTILO GOOGLE CALENDAR
    ========================================================================= */
 .gcal-ui {
-    --g-blue: #1a73e8;
-    --g-blue-hover: #1765cc;
-    --g-blue-light: #e8f0fe;
-    --g-blue-soft: #d2e3fc;
+    /* Acento de marca Physio World sobre la estructura de Google Calendar */
+    --g-blue: #0284c7;
+    --g-blue-hover: #0369a1;
+    --g-blue-light: #e0f2fe;
+    --g-blue-soft: #bae6fd;
+    --g-blue-ink: #075985;
     --g-text: #3c4043;
     --g-text-2: #5f6368;
     --g-text-3: #70757a;
@@ -15,7 +17,7 @@
     --g-shadow-1: 0 1px 2px 0 rgba(60, 64, 67, .3), 0 1px 3px 1px rgba(60, 64, 67, .15);
     --g-shadow-2: 0 1px 3px 0 rgba(60, 64, 67, .3), 0 4px 8px 3px rgba(60, 64, 67, .15);
     --g-shadow-pop: 0 24px 38px 3px rgba(0, 0, 0, .14), 0 9px 46px 8px rgba(0, 0, 0, .12), 0 11px 15px -7px rgba(0, 0, 0, .2);
-    font-family: 'Google Sans', Roboto, Arial, sans-serif;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     color: var(--g-text);
 }
 .gcal-ui *, .gcal-ui *::before, .gcal-ui *::after { font-family: inherit; }
@@ -82,7 +84,7 @@
     height: 36px; padding: 0 14px;
     font-size: 14px; font-weight: 500; cursor: pointer;
 }
-.gcal-text-btn:hover { background: rgba(26, 115, 232, .06); }
+.gcal-text-btn:hover { background: rgba(2, 132, 199, .07); }
 
 .gcal-outline-btn {
     background: #fff; color: var(--g-text);
@@ -176,7 +178,7 @@
     font-size: 14px; color: var(--g-text); text-align: left;
 }
 .gcal-menu-item:hover { background: var(--g-hover); }
-.gcal-menu-item.active { background: var(--g-blue-light); color: #185abc; }
+.gcal-menu-item.active { background: var(--g-blue-light); color: var(--g-blue-ink); }
 .gcal-menu-item kbd { font-size: 12px; color: var(--g-text-3); font-family: inherit; }
 .gcal-menu-item.check { justify-content: flex-start; }
 .gcal-menu-item.check input { accent-color: var(--g-blue); width: 16px; height: 16px; }
@@ -227,8 +229,8 @@
 }
 .gcal-mini-day:hover { background: var(--g-hover); }
 .gcal-mini-day.otro { color: var(--g-text-3); }
-.gcal-mini-day.rango { background: var(--g-blue-light); color: #185abc; }
-.gcal-mini-day.sel { background: var(--g-blue-soft); color: #185abc; }
+.gcal-mini-day.rango { background: var(--g-blue-light); color: var(--g-blue-ink); }
+.gcal-mini-day.sel { background: var(--g-blue-soft); color: var(--g-blue-ink); }
 .gcal-mini-day.hoy { background: var(--g-blue); color: #fff; }
 
 .gcal-people {
@@ -254,7 +256,7 @@
 .gcal-notif-cta {
     margin: 8px; padding: 12px 14px; width: calc(100% - 16px);
     display: flex; gap: 12px; align-items: flex-start; text-align: left;
-    background: var(--g-blue-light); color: #185abc;
+    background: var(--g-blue-light); color: var(--g-blue-ink);
     border: none; border-radius: 12px; cursor: pointer;
     font-size: 13px; line-height: 1.4;
 }
@@ -272,7 +274,7 @@
     --fc-now-indicator-color: var(--g-red);
     --fc-page-bg-color: #fff;
     --fc-neutral-bg-color: #fff;
-    --fc-highlight-color: rgba(26, 115, 232, .1);
+    --fc-highlight-color: rgba(2, 132, 199, .12);
     --fc-list-event-hover-bg-color: var(--g-hover);
     --fc-event-border-color: transparent;
     font-size: 12px;
@@ -328,7 +330,12 @@
 .gcal-ev-title { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gcal-ev-title i { font-size: 10px; }
 .gcal-ev-time, .gcal-ev-sub { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .95; }
-.gcal .fc-timegrid-event.fc-event-short .gcal-ev-sub { display: none; }
+.gcal .fc-timegrid-event-short .gcal-ev { display: flex; gap: 6px; align-items: baseline; }
+.gcal .fc-timegrid-event-short .gcal-ev-sub { display: none; }
+.gcal .fc-timegrid-event-short .gcal-ev-time { flex-shrink: 0; }
+.gcal .fc-timegrid-event { transition: box-shadow .15s, filter .15s; }
+.gcal .fc-timegrid-event:hover { filter: brightness(.96); box-shadow: 0 0 0 1px #fff, 0 2px 6px rgba(15, 23, 42, .25); }
+.gcal .fc .fc-non-business { background: #f8fafc; }
 
 .gcal .fc-event.gcal-ev-past { opacity: .82; }
 .gcal .fc-event.gcal-ev-done { opacity: .55; }
@@ -413,8 +420,7 @@
 .gcal-popover {
     position: fixed; z-index: 10500;
     width: 448px; max-width: calc(100vw - 24px);
-    max-height: calc(100vh - 24px); overflow-y: auto;
-    background: #fff; border-radius: 8px;
+    background: #fff; border-radius: 12px;
     box-shadow: var(--g-shadow-pop);
     animation: gcalPop .14s ease-out;
 }
@@ -423,14 +429,14 @@
 
 .gcal-popover.sheet {
     left: 0 !important; right: 0; bottom: 0; top: auto !important;
-    width: 100%; max-width: none; max-height: 88vh;
+    width: 100%; max-width: none; max-height: 88vh; overflow-y: auto;
     border-radius: 16px 16px 0 0;
     animation: gcalSheet .2s ease-out;
 }
 @keyframes gcalSheet { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 .gcal-pop-top { display: flex; align-items: center; justify-content: flex-end; gap: 2px; padding: 6px 6px 0; }
-.gcal-pop-top.gray { background: var(--g-hover); padding: 2px 6px; border-radius: 8px 8px 0 0; }
+.gcal-pop-top.gray { background: var(--g-hover); padding: 2px 6px; border-radius: 12px 12px 0 0; }
 .gcal-grip { margin-right: auto; margin-left: 50%; transform: translateX(-50%); color: #9aa0a6; font-size: 12px; }
 .gcal-pop-body { padding: 8px 24px 12px 20px; }
 .gcal-pop-footer { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 4px 16px 16px; }
@@ -446,7 +452,7 @@
 
 .gcal-chip-row { margin: 0 0 8px 36px; display: flex; gap: 6px; }
 .gcal-chip { font-size: 14px; font-weight: 500; padding: 6px 12px; border-radius: 4px; }
-.gcal-chip.active { background: var(--g-blue-light); color: #185abc; }
+.gcal-chip.active { background: var(--g-blue-light); color: var(--g-blue-ink); }
 
 .gcal-row { display: flex; align-items: flex-start; gap: 16px; padding: 5px 0; min-height: 36px; }
 .gcal-row > i:first-child { width: 20px; text-align: center; color: var(--g-text-2); font-size: 16px; margin-top: 10px; flex-shrink: 0; }
@@ -474,6 +480,7 @@
 .gcal-pill.ok { background: #e6f4ea; color: #137333; }
 .gcal-pill.pend { background: #fef7e0; color: #b06000; }
 .gcal-det-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0 36px; }
+.gcal-det-actions .gcal-outline-btn { padding: 0 12px; font-size: 12.5px; }
 .gcal-detail .gcal-menu { right: 0; min-width: 210px; }
 .gcal-detail [data-acc="whatsapp"]:not(:disabled) { color: #1e9e57; }
 
@@ -633,3 +640,115 @@ body.gcal-modal-abierto { overflow: hidden; }
     .gcal-snackbar { bottom: 86px; left: 12px; right: 12px; max-width: none; }
     .notif-panel { position: fixed; top: 64px; right: 12px; left: 12px; width: auto; }
 }
+
+/* =========================================================================
+   DETALLES PROFESIONALES
+   ========================================================================= */
+.gcal-oculto { display: none !important; }
+
+.gcal-ui button:focus-visible,
+.gcal-ui [role="option"]:focus-visible,
+.gcal-ui a:focus-visible {
+    outline: 2px solid var(--g-blue);
+    outline-offset: 2px;
+}
+
+/* Barra de carga sobre el calendario */
+.gcal-loading {
+    position: absolute; top: 0; left: 0; right: 8px; height: 3px; z-index: 9;
+    overflow: hidden; opacity: 0; transition: opacity .2s; pointer-events: none;
+}
+.gcal-loading.activo { opacity: 1; }
+.gcal-loading::after {
+    content: ''; position: absolute; top: 0; bottom: 0; width: 35%;
+    background: linear-gradient(90deg, transparent, var(--g-blue), transparent);
+    animation: gcalCarga 1s ease-in-out infinite;
+}
+@keyframes gcalCarga { from { left: -35%; } to { left: 100%; } }
+
+/* Puntos en el mini calendario para días con citas */
+.gcal-mini-day { position: relative; }
+.gcal-mini-day.con-citas::after {
+    content: ''; position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%);
+    width: 4px; height: 4px; border-radius: 50%; background: var(--g-blue);
+}
+.gcal-mini-day.hoy.con-citas::after { background: #fff; }
+
+/* Avatares */
+.gcal-avatar {
+    width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .3px;
+}
+.gcal-avatar.plus { background: var(--g-blue-light); color: var(--g-blue); font-size: 13px; }
+
+/* Buscador de pacientes */
+.gcal-combo { position: relative; }
+.gcal-ui input.gcal-combo-input {
+    width: 100%; font-size: 22px; padding: 6px 2px;
+    background: transparent; border-radius: 0;
+    border: none; border-bottom: 1px solid var(--g-border);
+}
+.gcal-ui input.gcal-combo-input:hover { background: transparent; }
+.gcal-ui input.gcal-combo-input:focus { background: transparent; border-bottom: 2px solid var(--g-blue); }
+.gcal-ui input.gcal-combo-input::placeholder { color: var(--g-text-3); }
+.gcal-combo-list {
+    position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30;
+    max-height: 300px; overflow-y: auto; padding: 6px 0;
+    background: #fff; border-radius: 10px;
+    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, .1), 0 12px 28px -4px rgba(15, 23, 42, .18);
+}
+.gcal-combo-list[hidden] { display: none; }
+.gcal-combo-item { display: flex; align-items: center; gap: 12px; padding: 8px 14px; cursor: pointer; }
+.gcal-combo-item.activo, .gcal-combo-item:hover { background: var(--g-hover); }
+.gcal-combo-item.elegido strong { color: var(--g-blue-ink); }
+.gcal-combo-item.nuevo { border-top: 1px solid var(--g-border); margin-top: 4px; padding-top: 10px; }
+.gcal-combo-item.nuevo strong { color: var(--g-blue); }
+.gcal-combo-txt { display: flex; flex-direction: column; min-width: 0; }
+.gcal-combo-txt strong { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gcal-combo-txt small { font-size: 12px; color: var(--g-text-3); }
+.gcal-combo-vacio { padding: 12px 16px; font-size: 13px; color: var(--g-text-3); }
+
+/* Campo de fecha legible ("Lunes, 16 de noviembre") */
+.gcal-date-field {
+    position: relative; display: inline-flex !important; align-items: center;
+    min-height: 36px; padding: 8px 10px; border-radius: 4px 4px 0 0;
+    background: var(--g-hover); cursor: pointer; font-size: 14px !important;
+    transition: background .15s;
+}
+.gcal-date-field:hover { background: #e8eaed; }
+.gcal-ui .gcal-date-field input[type="date"] {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    opacity: 0; pointer-events: none; padding: 0;
+}
+#gcalQuick .gcal-date-field { flex: 1 1 100%; }
+
+/* Avisos de empalme / fuera de horario */
+.gcal-conflicto {
+    margin: 2px 0 6px 36px; padding: 8px 12px; border-radius: 8px;
+    background: #fff7ed; color: #9a3412; font-size: 13px; line-height: 1.4;
+    display: flex; flex-direction: column; gap: 4px;
+}
+.gcal-conflicto[hidden] { display: none; }
+.gcal-conflicto > div { display: flex; gap: 8px; align-items: baseline; }
+.gcal-conflicto i { color: #ea580c; }
+.gcal-modal .gcal-conflicto { margin-left: 0; margin-top: 8px; }
+
+/* Detalle: paciente */
+.gcal-persona { align-items: center; }
+.gcal-persona .gcal-avatar { margin-left: -6px; }
+.gcal-persona > div { padding-top: 0 !important; display: flex; flex-direction: column; }
+.gcal-persona > div > span:first-child { font-size: 12px; color: var(--g-text-3); }
+.gcal-persona a { color: var(--g-blue); text-decoration: none; font-weight: 600; font-size: 14px; }
+.gcal-persona a:hover { text-decoration: underline; }
+.gcal-persona a i { font-size: 12px; }
+
+/* Configuración: días laborales */
+.gcal-dias { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.gcal-dia {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 1px solid var(--g-border); background: #fff; color: var(--g-text-2);
+    font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s;
+}
+.gcal-dia:hover { background: var(--g-hover); }
+.gcal-dia.on { background: var(--g-blue); border-color: var(--g-blue); color: #fff; }
