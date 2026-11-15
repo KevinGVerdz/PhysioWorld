@@ -1,7 +1,14 @@
 document.addEventListener('DOMContentLoaded', () => {
     let usuarioActual = null;
-    let calendarioFisio = null; 
     let listaGlobalPacientes = [];
+
+    // Puente para el módulo de Agenda (agenda.js)
+    window.PhysioApp = {
+        getUsuario: () => usuarioActual,
+        getPacientes: () => listaGlobalPacientes,
+        cargarPacientesGlobales: () => cargarPacientesGlobales(),
+        actualizarDashboard: () => actualizarDashboardYNotificaciones()
+    };
 
     // ==========================================
     // 0. UTILIDAD: NOTIFICACIONES TOAST Y FECHA
@@ -99,7 +106,8 @@ document.addEventListener('DOMContentLoaded', () => {
             btnAgenda.classList.add('active');
             if (seccionAgenda) {
                 seccionAgenda.style.display = 'block';
-                if (window.supabaseCliente) { cargarPacientesGlobales(); setTimeout(() => renderizarCalendario(), 100); }
+                if (window.supabaseCliente) cargarPacientesGlobales();
+                if (window.Agenda) window.Agenda.mostrar();
             }
         });
     }
@@ -169,6 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.querySelector('.user-info p').innerHTML = `<i class="fas fa-user-md"></i> <span>${data.nombre}</span>`;
                 mostrarToast(`Bienvenido(a), ${data.nombre}`);
                 actualizarDashboardYNotificaciones();
+                if (window.Agenda) window.Agenda.alIniciarSesion();
             }
         });
     }
@@ -299,15 +308,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 await cargarPacientesGlobales();
                 actualizarDashboardYNotificaciones();
                 
-                // Redirigir a Agenda y preseleccionar al paciente recién creado
+                // Redirigir a Agenda y abrir la creación de cita con el paciente recién creado
                 document.getElementById('menu-agenda').click();
-                if (nuevoPac && nuevoPac.id) {
-                    setTimeout(() => {
-                        const selAgenda = document.getElementById('selectPacienteAgenda');
-                        const selTipo = document.getElementById('tipoCitaAgenda');
-                        if (selAgenda) selAgenda.value = nuevoPac.id;
-                        if (selTipo) selTipo.value = datosPaciente.servicio_contratado;
-                    }, 200);
+                if (nuevoPac && nuevoPac.id && window.Agenda) {
+                    window.Agenda.abrirCrear({ pacienteId: nuevoPac.id, servicio: datosPaciente.servicio_contratado });
                 }
             }
             btnSubmit.innerHTML = '<i class="fas fa-save"></i> Guardar Expediente y Pasar a Agenda';
@@ -324,24 +328,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data) {
             listaGlobalPacientes = data;
             
-            const selectA = document.getElementById('selectPacienteAgenda');
             const selectV = document.getElementById('selectPacienteValoracion');
-            const valorPrevioA = selectA ? selectA.value : '';
             const valorPrevioV = selectV ? selectV.value : '';
-
-            if(selectA) selectA.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
             if(selectV) selectV.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
 
             data.forEach(p => {
-                const optA = document.createElement('option'); optA.value = p.id; optA.textContent = p.nombre_completo;
-                if(selectA) selectA.appendChild(optA);
-                
                 const optV = document.createElement('option'); optV.value = p.id; optV.textContent = p.nombre_completo;
                 if(selectV) selectV.appendChild(optV);
             });
 
-            if (selectA && valorPrevioA) selectA.value = valorPrevioA;
             if (selectV && valorPrevioV) selectV.value = valorPrevioV;
+            if (window.Agenda) window.Agenda.pacientesActualizados();
 
             renderizarListaDirectorio('');
         }
@@ -385,86 +382,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputFiltroModal = document.getElementById('filtroModalPacientes');
     if (inputFiltroModal) {
         inputFiltroModal.addEventListener('input', (e) => renderizarListaDirectorio(e.target.value));
-    }
-
-    function renderizarCalendario() {
-        const calendarEl = document.getElementById('calendarioGoogle');
-        if (!calendarEl) return;
-        if (calendarioFisio) { calendarioFisio.render(); return; }
-
-        calendarioFisio = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'timeGridWeek', locale: 'es', 
-            headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
-            slotMinTime: '07:00:00', slotMaxTime: '21:00:00', allDaySlot: false,
-            height: 'auto',
-            events: async function(info, successCallback, failureCallback) {
-                if(!window.supabaseCliente) return failureCallback('Sin BD');
-                const { data, error } = await window.supabaseCliente.from('citas')
-                    .select('id, fecha_hora, fecha_fin, tipo_cita, evolucion, paciente_id, estado, pacientes(nombre_completo)')
-                    .gte('fecha_hora', info.startStr).lt('fecha_hora', info.endStr);
-                if (error) failureCallback(error);
-                else {
-                    const eventos = data.map(cita => ({
-                        id: cita.id,
-                        title: (cita.pacientes ? cita.pacientes.nombre_completo : '') + (cita.estado === 'listo' ? ' ✔' : ''),
-                        start: cita.fecha_hora,
-                        end: cita.fecha_fin || cita.fecha_hora, 
-                        backgroundColor: cita.estado === 'listo' ? '#10b981' : '#0284c7',
-                        borderColor: cita.estado === 'listo' ? '#059669' : '#0369a1',
-                        extendedProps: { paciente_id: cita.paciente_id } 
-                    }));
-                    successCallback(eventos);
-                }
-            },
-            eventClick: async function(info) {
-                const pacienteId = info.event.extendedProps.paciente_id;
-                if(pacienteId) {
-                    document.getElementById('menu-valoraciones').click(); 
-                    await cargarPacientesGlobales(); 
-                    const selectVal = document.getElementById('selectPacienteValoracion');
-                    selectVal.value = pacienteId;
-                    selectVal.dispatchEvent(new Event('change')); 
-                }
-            }
-        });
-        calendarioFisio.render();
-    }
-
-    const formAgendarCita = document.getElementById('formAgendarCita');
-    if (formAgendarCita) {
-        formAgendarCita.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if(!window.supabaseCliente || !usuarioActual) return mostrarToast("Debes iniciar sesión", "error");
-
-            const pacienteId = document.getElementById('selectPacienteAgenda').value;
-            const tipoCita = document.getElementById('tipoCitaAgenda').value;
-            const notas = document.getElementById('notasCita').value; 
-            const fechaInicio = new Date(document.getElementById('fechaHoraCita').value).toISOString();
-            const fechaFin = new Date(document.getElementById('fechaHoraFinCita').value).toISOString();
-
-            if (!pacienteId || !tipoCita) return mostrarToast("Completa todos los campos obligatorios", "error");
-            if (new Date(fechaFin) <= new Date(fechaInicio)) return mostrarToast("La hora de término debe ser posterior al inicio", "error");
-
-            const btnSubmit = formAgendarCita.querySelector('button[type="submit"]');
-            btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Agendando...';
-            btnSubmit.disabled = true;
-
-            const { error } = await window.supabaseCliente.from('citas').insert([{ 
-                paciente_id: pacienteId, tipo_cita: tipoCita, fecha_hora: fechaInicio, fecha_fin: fechaFin, 
-                evolucion: notas, estado: 'pendiente', creado_por_id: usuarioActual.id 
-            }]);
-
-            if (!error) {
-                mostrarToast('¡Sesión agendada en el calendario!');
-                formAgendarCita.reset();
-                actualizarDashboardYNotificaciones();
-                if(calendarioFisio) calendarioFisio.refetchEvents(); 
-            } else {
-                mostrarToast('Error: ' + error.message, 'error');
-            }
-            btnSubmit.innerHTML = '<i class="fas fa-calendar-check"></i> Agendar en Calendario';
-            btnSubmit.disabled = false;
-        });
     }
 
     // ==========================================
@@ -535,6 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const fechaObjFin = cita.fecha_fin ? new Date(cita.fecha_fin) : new Date(fechaObj.getTime() + 3600000);
                     const tzOffsetFin = fechaObjFin.getTimezoneOffset() * 60000;
                     const valorFin = (new Date(fechaObjFin - tzOffsetFin)).toISOString().slice(0, 16);
+                    const duracionMin = Math.max(15, Math.round((fechaObjFin - fechaObj) / 60000)) || 60;
 
                     const nombreFisio = cita.staff ? cita.staff.nombre : 'Staff';
                     const esListo = cita.estado === 'listo';
@@ -558,8 +476,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
 
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px;">
-                                <div><label>Inicio de Sesión:</label><input type="datetime-local" id="inicio-${cita.id}" value="${valorInicio}"></div>
-                                <div><label>Fin de Sesión:</label><input type="datetime-local" id="fin-${cita.id}" value="${valorFin}"></div>
+                                <div><label>Inicio de Sesión:</label><input type="datetime-local" id="inicio-${cita.id}" value="${valorInicio}" data-cita="${cita.id}" data-duracion="${duracionMin}"></div>
+                                <div><label>Fin de Sesión:</label><input type="datetime-local" id="fin-${cita.id}" value="${valorFin}" data-cita-fin="${cita.id}"></div>
                             </div>
                             
                             <label>Notas de Evolución Clínica:</label>
@@ -578,6 +496,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             } else if (listaCitas) {
                 listaCitas.innerHTML = '<p style="color:var(--text-muted); font-style:italic; padding: 15px 0;">No hay sesiones registradas para este paciente todavía.</p>';
+            }
+        });
+    }
+
+    // Hora de término automática en el historial: al mover el inicio, el fin se recorre
+    // conservando la duración (1 hora por defecto).
+    const listaHistorial = document.getElementById('listaHistorialCitas');
+    if (listaHistorial) {
+        const aValorLocal = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        listaHistorial.addEventListener('change', (e) => {
+            const el = e.target;
+            if (el.dataset.cita) {
+                const inicio = new Date(el.value);
+                if (isNaN(inicio)) return;
+                const dur = parseInt(el.dataset.duracion, 10) || 60;
+                const fin = document.getElementById(`fin-${el.dataset.cita}`);
+                if (fin) fin.value = aValorLocal(new Date(inicio.getTime() + dur * 60000));
+            } else if (el.dataset.citaFin) {
+                const ini = document.getElementById(`inicio-${el.dataset.citaFin}`);
+                if (!ini) return;
+                const dur = Math.round((new Date(el.value) - new Date(ini.value)) / 60000);
+                if (dur > 0) ini.dataset.duracion = dur;
             }
         });
     }
@@ -607,7 +547,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if(destino === 'agenda') {
             document.getElementById('menu-agenda').click();
             await cargarPacientesGlobales();
-            document.getElementById('selectPacienteAgenda').value = pacienteId;
+            const pac = listaGlobalPacientes.find(p => String(p.id) === String(pacienteId));
+            if (window.Agenda) window.Agenda.abrirCrear({ pacienteId, servicio: pac ? pac.servicio_contratado : '' });
         } else if (destino === 'valoracion') {
             document.getElementById('menu-valoraciones').click();
             await cargarPacientesGlobales(); 
@@ -632,6 +573,7 @@ window.actualizarCitaBD = async function(citaId, nuevoEstado) {
     if (error) mostrarToast("Error: " + error.message, "error");
     else {
         mostrarToast("¡Sesión actualizada correctamente!");
+        if (window.Agenda) window.Agenda.refrescar();
         document.getElementById('selectPacienteValoracion').dispatchEvent(new Event('change'));
     }
 };
@@ -643,6 +585,7 @@ window.eliminarCitaBD = async function(citaId) {
     if (error) mostrarToast("Error: " + error.message, "error");
     else {
         mostrarToast("Cita eliminada del historial");
+        if (window.Agenda) window.Agenda.refrescar();
         document.getElementById('selectPacienteValoracion').dispatchEvent(new Event('change'));
     }
 };

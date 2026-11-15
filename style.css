@@ -698,39 +698,6 @@ input[type="range"]::-webkit-slider-thumb:hover {
     color: var(--text-dark);
 }
 
-/* Personalización de FullCalendar */
-.fc .fc-toolbar-title {
-    font-size: 1.25rem !important;
-    font-weight: 800 !important;
-    color: var(--text-dark);
-    text-transform: capitalize;
-}
-
-.fc .fc-button-primary {
-    background-color: var(--primary-color) !important;
-    border-color: var(--primary-color) !important;
-    font-weight: 600 !important;
-    border-radius: 8px !important;
-    text-transform: capitalize;
-}
-
-.fc .fc-button-primary:hover {
-    background-color: var(--primary-dark) !important;
-}
-
-.fc-theme-standard td, .fc-theme-standard th {
-    border-color: var(--border-color) !important;
-}
-
-.fc-event {
-    border-radius: 6px !important;
-    padding: 2px 5px !important;
-    font-size: 0.82rem !important;
-    font-weight: 600 !important;
-    cursor: pointer;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
 /* ==========================================
    NOTIFICACIONES TOAST
    ========================================== */
