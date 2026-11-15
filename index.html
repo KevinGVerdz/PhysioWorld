@@ -5,8 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Physio World - Suite Clínica Pro</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="agenda.css">
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+    <script src='https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales/es.global.min.js'></script>
 </head>
 <body>
 
@@ -89,9 +93,12 @@
                     <i class="far fa-calendar-alt"></i>
                     <span id="fechaActualTop">Cargando fecha...</span>
                 </div>
-                <div class="notification-bell" onclick="document.getElementById('menu-agenda').click()" title="Ver citas de hoy">
-                    <i class="fas fa-bell"></i>
-                    <span class="badge" style="display: none;">0</span>
+                <div class="notif-wrapper">
+                    <div class="notification-bell" id="btnCampana" onclick="togglePanelNotificaciones(event)" title="Próximas citas y notificaciones">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge" style="display: none;">0</span>
+                    </div>
+                    <div class="notif-panel gcal-ui" id="panelNotificaciones" hidden></div>
                 </div>
             </div>
         </header>
@@ -287,67 +294,79 @@
             </form>
         </section>
 
-        <!-- 3. SECCIÓN AGENDA Y FULLCALENDAR -->
-        <section id="seccion-agenda" class="view-section" style="display: none;">
-            <div class="section-header">
-                <div>
-                    <h2>Agenda Clínica Interactiva</h2>
-                    <p>Programa sesiones y haz clic sobre cualquier bloque del calendario para abrir el expediente del paciente.</p>
-                </div>
-            </div>
+        <!-- 3. SECCIÓN AGENDA (ESTILO GOOGLE CALENDAR) -->
+        <section id="seccion-agenda" class="view-section gcal-section" style="display: none;">
+            <div class="gcal gcal-ui" id="gcalApp">
+                <header class="gcal-header">
+                    <button type="button" class="gcal-icon-btn" id="gcalToggleSidebar" title="Menú principal" aria-label="Mostrar u ocultar el panel lateral"><i class="fas fa-bars"></i></button>
+                    <div class="gcal-brand">
+                        <span class="gcal-brand-icon"><span id="gcalBrandDia">1</span></span>
+                        <span class="gcal-brand-text">Agenda</span>
+                    </div>
+                    <button type="button" class="gcal-today-btn" id="gcalHoy" title="Hoy (T)">Hoy</button>
+                    <div class="gcal-nav">
+                        <button type="button" class="gcal-icon-btn sm" id="gcalPrev" title="Anterior (K)" aria-label="Periodo anterior"><i class="fas fa-chevron-left"></i></button>
+                        <button type="button" class="gcal-icon-btn sm" id="gcalNext" title="Siguiente (J)" aria-label="Periodo siguiente"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <h2 class="gcal-title" id="gcalTitulo">Agenda</h2>
 
-            <div style="display: grid; grid-template-columns: 1fr 2.6fr; gap: 24px;">
-                <div class="surface-panel" style="height: fit-content;">
-                    <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 16px; color: var(--text-dark);">
-                        <i class="far fa-calendar-plus" style="color: var(--primary-color); margin-right: 6px;"></i> Programar Cita
-                    </h3>
-                    <form id="formAgendarCita">
-                        <button type="button" class="btn-directorio" onclick="abrirDirectorio()">
-                            <i class="fas fa-address-book"></i> Seleccionar desde Directorio
+                    <div class="gcal-header-right">
+                        <form class="gcal-search" id="gcalSearch" role="search">
+                            <button type="button" class="gcal-icon-btn" id="gcalSearchBtn" title="Buscar (/)" aria-label="Buscar"><i class="fas fa-search"></i></button>
+                            <input type="text" id="gcalBuscar" placeholder="Buscar por paciente, servicio o nota" autocomplete="off">
+                            <button type="button" class="gcal-icon-btn sm" id="gcalSearchClear" title="Cerrar búsqueda" aria-label="Cerrar búsqueda"><i class="fas fa-times"></i></button>
+                        </form>
+                        <button type="button" class="gcal-icon-btn hide-mobile" id="gcalAyuda" title="Combinaciones de teclas (?)" aria-label="Ayuda"><i class="far fa-question-circle"></i></button>
+                        <button type="button" class="gcal-icon-btn" id="gcalConfigBtn" title="Configuración" aria-label="Configuración"><i class="fas fa-cog"></i></button>
+                        <div class="gcal-dropdown">
+                            <button type="button" class="gcal-view-btn" id="gcalVistaBtn"><span id="gcalVistaTxt">Semana</span> <i class="fas fa-caret-down"></i></button>
+                            <div class="gcal-menu" id="gcalVistaMenu" role="menu"></div>
+                        </div>
+                    </div>
+                </header>
+
+                <div class="gcal-body">
+                    <aside class="gcal-sidebar" id="gcalSidebar">
+                        <button type="button" class="gcal-create-btn" id="gcalCrear" title="Crear cita (C)">
+                            <span class="gcal-create-plus"><i class="fas fa-plus"></i></span> Crear
                         </button>
-                        
-                        <div style="margin-bottom: 14px;">
-                            <label>Paciente *</label>
-                            <select id="selectPacienteAgenda" required>
-                                <option value="">-- Seleccione un paciente --</option>
-                            </select>
-                        </div>
 
-                        <div style="margin-bottom: 14px;">
-                            <label>Servicio a Realizar *</label>
-                            <select id="tipoCitaAgenda" required>
-                                <option value="">-- Seleccionar --</option>
-                                <option value="Valoración - $100">Valoración — $100</option>
-                                <option value="Sesión - $450">Sesión — $450</option>
-                                <option value="Paquete de 5 sesiones - $2000">Paquete 5 sesiones — $2000</option>
-                                <option value="Media Descarga - $400">Media Descarga — $400</option>
-                                <option value="Descarga Completa - $700">Descarga Completa — $700</option>
-                            </select>
-                        </div>
+                        <div class="gcal-mini" id="gcalMini"></div>
 
-                        <div style="margin-bottom: 14px;">
-                            <label>Fecha y Hora de Inicio *</label>
-                            <input type="datetime-local" id="fechaHoraCita" required>
-                        </div>
-
-                        <div style="margin-bottom: 14px;">
-                            <label>Fecha y Hora de Término *</label>
-                            <input type="datetime-local" id="fechaHoraFinCita" required>
-                        </div>
-
-                        <div style="margin-bottom: 18px;">
-                            <label>Notas / Indicaciones de la Sesión</label>
-                            <textarea id="notasCita" rows="2" placeholder="Ej. Sesión 2/5, traer estudios..."></textarea>
-                        </div>
-
-                        <button type="submit" class="btn-primary" style="width: 100%;">
-                            <i class="fas fa-calendar-check"></i> Agendar en Calendario
+                        <button type="button" class="gcal-people" onclick="abrirDirectorio()">
+                            <i class="fas fa-user-friends"></i> <span>Buscar pacientes</span>
                         </button>
-                    </form>
-                </div>
 
-                <div class="surface-panel">
-                    <div id="calendarioGoogle"></div>
+                        <div class="gcal-cal-list">
+                            <div class="gcal-cal-list-header">Mis calendarios</div>
+                            <div id="gcalCalendarios"></div>
+                        </div>
+
+                        <div class="gcal-cal-list">
+                            <div class="gcal-cal-list-header">Estado</div>
+                            <label class="gcal-cal-item" style="--c:#33b679">
+                                <input type="checkbox" id="gcalMostrarCompletadas"> <span>Citas completadas</span>
+                            </label>
+                        </div>
+
+                        <button type="button" class="gcal-notif-cta" id="gcalNotifCta" hidden>
+                            <i class="far fa-bell"></i>
+                            <span>Activa las notificaciones para recibir avisos antes de cada cita</span>
+                        </button>
+                    </aside>
+
+                    <div class="gcal-main">
+                        <div id="calendarioGoogle"></div>
+
+                        <!-- Resultados de búsqueda -->
+                        <div class="gcal-search-results" id="gcalResultados" hidden>
+                            <div class="gcal-search-results-head">
+                                <button type="button" class="gcal-icon-btn" id="gcalResultadosVolver" title="Volver" aria-label="Volver al calendario"><i class="fas fa-arrow-left"></i></button>
+                                <h3 id="gcalResultadosTitulo">Resultados de búsqueda</h3>
+                            </div>
+                            <div id="gcalResultadosLista"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -440,7 +459,191 @@
         </footer>
     </main>
 
+    <!-- ============ AGENDA: VENTANAS FLOTANTES (ESTILO GOOGLE CALENDAR) ============ -->
+
+    <!-- Creación rápida de cita -->
+    <div id="gcalQuick" class="gcal-popover gcal-ui" role="dialog" aria-label="Crear cita" hidden>
+        <div class="gcal-pop-top gray">
+            <span class="gcal-grip"><i class="fas fa-grip-lines"></i></span>
+            <button type="button" class="gcal-icon-btn sm" data-cerrar title="Cerrar" aria-label="Cerrar"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="gcal-pop-body">
+            <div class="gcal-title-field">
+                <select id="qPaciente" class="gcal-title-input" aria-label="Paciente"></select>
+            </div>
+            <div class="gcal-chip-row"><span class="gcal-chip active">Cita</span></div>
+            <div class="gcal-row">
+                <i class="far fa-clock"></i>
+                <div class="gcal-time-editor">
+                    <input type="date" id="qFecha" aria-label="Fecha">
+                    <select id="qInicio" aria-label="Hora de inicio"></select>
+                    <span class="gcal-dash">–</span>
+                    <select id="qFin" aria-label="Hora de término"></select>
+                </div>
+            </div>
+            <div class="gcal-row">
+                <i class="fas fa-circle gcal-color-dot" id="qColor"></i>
+                <select id="qServicio" aria-label="Servicio"></select>
+            </div>
+            <div class="gcal-row">
+                <i class="far fa-bell"></i>
+                <select id="qRecordatorio" aria-label="Notificación"></select>
+            </div>
+            <div class="gcal-row">
+                <i class="fas fa-align-left"></i>
+                <textarea id="qNotas" rows="1" placeholder="Agregar descripción o notas"></textarea>
+            </div>
+        </div>
+        <div class="gcal-pop-footer">
+            <button type="button" class="gcal-text-btn" id="qMasOpciones">Más opciones</button>
+            <button type="button" class="gcal-save-btn" id="qGuardar">Guardar</button>
+        </div>
+    </div>
+
+    <!-- Detalle de cita -->
+    <div id="gcalDetalle" class="gcal-popover gcal-detail gcal-ui" role="dialog" aria-label="Detalle de la cita" hidden>
+        <div class="gcal-pop-top">
+            <button type="button" class="gcal-icon-btn sm" data-acc="editar" title="Editar cita"><i class="fas fa-pen"></i></button>
+            <button type="button" class="gcal-icon-btn sm" data-acc="eliminar" title="Eliminar cita"><i class="far fa-trash-alt"></i></button>
+            <button type="button" class="gcal-icon-btn sm" data-acc="whatsapp" title="Enviar recordatorio por WhatsApp"><i class="fab fa-whatsapp"></i></button>
+            <div class="gcal-dropdown">
+                <button type="button" class="gcal-icon-btn sm" data-acc="mas" title="Opciones"><i class="fas fa-ellipsis-v"></i></button>
+                <div class="gcal-menu" id="dMasMenu" role="menu">
+                    <button type="button" class="gcal-menu-item" data-acc="duplicar"><span>Duplicar</span></button>
+                    <button type="button" class="gcal-menu-item" data-acc="expediente"><span>Abrir expediente</span></button>
+                    <button type="button" class="gcal-menu-item" data-acc="estado"><span id="dMenuEstado">Marcar como completada</span></button>
+                </div>
+            </div>
+            <button type="button" class="gcal-icon-btn sm" data-cerrar title="Cerrar" aria-label="Cerrar"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="gcal-pop-body" id="dCuerpo"></div>
+    </div>
+
+    <!-- Edición completa ("Más opciones") -->
+    <div id="gcalModal" class="gcal-modal-backdrop gcal-ui" hidden>
+        <div class="gcal-modal" role="dialog" aria-label="Editar cita">
+            <div class="gcal-modal-header">
+                <button type="button" class="gcal-icon-btn" data-cerrar title="Cerrar" aria-label="Cerrar"><i class="fas fa-times"></i></button>
+                <div class="gcal-title-field grow">
+                    <select id="mPaciente" class="gcal-title-input" aria-label="Paciente"></select>
+                </div>
+                <button type="button" class="gcal-save-btn" id="mGuardar">Guardar</button>
+            </div>
+            <div class="gcal-modal-body">
+                <div class="gcal-time-editor big">
+                    <input type="date" id="mFecha" aria-label="Fecha">
+                    <select id="mInicio" aria-label="Hora de inicio"></select>
+                    <span class="gcal-dash">a</span>
+                    <select id="mFin" aria-label="Hora de término"></select>
+                </div>
+                <p class="gcal-hint"><i class="fas fa-info-circle"></i> La hora de término se ajusta sola: por defecto 1 hora después del inicio.</p>
+
+                <div class="gcal-tabs"><span class="active">Detalles de la cita</span></div>
+
+                <div class="gcal-row">
+                    <i class="fas fa-circle gcal-color-dot" id="mColor"></i>
+                    <select id="mServicio" aria-label="Servicio"></select>
+                </div>
+                <div class="gcal-row">
+                    <i class="far fa-bell"></i>
+                    <select id="mRecordatorio" aria-label="Notificación"></select>
+                </div>
+                <div class="gcal-row">
+                    <i class="far fa-check-circle"></i>
+                    <select id="mEstado" aria-label="Estado">
+                        <option value="pendiente">Pendiente</option>
+                        <option value="listo">Completada</option>
+                    </select>
+                </div>
+                <div class="gcal-row">
+                    <i class="fas fa-align-left"></i>
+                    <textarea id="mNotas" rows="5" placeholder="Agregar descripción, indicaciones o notas de evolución"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuración -->
+    <div id="gcalConfig" class="gcal-modal-backdrop gcal-ui" hidden>
+        <div class="gcal-modal small" role="dialog" aria-label="Configuración de la agenda">
+            <div class="gcal-modal-header">
+                <h3 class="gcal-modal-title"><i class="fas fa-cog"></i> Configuración</h3>
+                <button type="button" class="gcal-icon-btn" data-cerrar title="Cerrar" aria-label="Cerrar"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="gcal-modal-body">
+                <h4 class="gcal-cfg-title">Notificaciones</h4>
+                <div class="gcal-cfg-row">
+                    <div>
+                        <strong>Notificaciones del navegador</strong>
+                        <p id="cfgPermiso" class="gcal-muted">—</p>
+                    </div>
+                    <div class="gcal-cfg-actions">
+                        <button type="button" class="gcal-outline-btn" id="cfgActivarNotif">Activar</button>
+                        <button type="button" class="gcal-outline-btn" id="cfgProbar">Probar</button>
+                    </div>
+                </div>
+                <div class="gcal-cfg-row">
+                    <label for="cfgRecordatorio">Recordatorio predeterminado</label>
+                    <select id="cfgRecordatorio"></select>
+                </div>
+                <div class="gcal-cfg-row">
+                    <label for="cfgSonido">Reproducir sonido con cada aviso</label>
+                    <input type="checkbox" id="cfgSonido" class="gcal-switch">
+                </div>
+
+                <h4 class="gcal-cfg-title">Vista</h4>
+                <div class="gcal-cfg-row">
+                    <label for="cfgPrimerDia">La semana empieza el</label>
+                    <select id="cfgPrimerDia">
+                        <option value="0">Domingo</option>
+                        <option value="1">Lunes</option>
+                        <option value="6">Sábado</option>
+                    </select>
+                </div>
+                <div class="gcal-cfg-row">
+                    <label for="cfgFines">Mostrar fines de semana</label>
+                    <input type="checkbox" id="cfgFines" class="gcal-switch">
+                </div>
+                <p class="gcal-muted" style="margin-top: 14px;">
+                    Los avisos funcionan mientras esta página esté abierta (aunque sea en otra pestaña o minimizada).
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Combinaciones de teclas -->
+    <div id="gcalAtajos" class="gcal-modal-backdrop gcal-ui" hidden>
+        <div class="gcal-modal small" role="dialog" aria-label="Combinaciones de teclas">
+            <div class="gcal-modal-header">
+                <h3 class="gcal-modal-title"><i class="far fa-keyboard"></i> Combinaciones de teclas</h3>
+                <button type="button" class="gcal-icon-btn" data-cerrar title="Cerrar" aria-label="Cerrar"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="gcal-modal-body">
+                <table class="gcal-shortcuts">
+                    <tr><td><kbd>T</kbd></td><td>Ir a hoy</td></tr>
+                    <tr><td><kbd>J</kbd> / <kbd>N</kbd></td><td>Periodo siguiente</td></tr>
+                    <tr><td><kbd>K</kbd> / <kbd>P</kbd></td><td>Periodo anterior</td></tr>
+                    <tr><td><kbd>D</kbd></td><td>Vista de día</td></tr>
+                    <tr><td><kbd>W</kbd></td><td>Vista de semana</td></tr>
+                    <tr><td><kbd>M</kbd></td><td>Vista de mes</td></tr>
+                    <tr><td><kbd>Y</kbd></td><td>Vista de año</td></tr>
+                    <tr><td><kbd>A</kbd></td><td>Vista de programación</td></tr>
+                    <tr><td><kbd>X</kbd></td><td>Vista de 4 días</td></tr>
+                    <tr><td><kbd>C</kbd></td><td>Crear cita</td></tr>
+                    <tr><td><kbd>/</kbd></td><td>Buscar</td></tr>
+                    <tr><td><kbd>R</kbd></td><td>Actualizar</td></tr>
+                    <tr><td><kbd>Esc</kbd></td><td>Cerrar ventana</td></tr>
+                    <tr><td><kbd>?</kbd></td><td>Mostrar esta ayuda</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Snackbar (mensajes con "Deshacer") -->
+    <div id="gcalSnackbar" class="gcal-snackbar gcal-ui" role="status" aria-live="polite" hidden></div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="app.js"></script>
+    <script src="agenda.js"></script>
 </body>
 </html>
